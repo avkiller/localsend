@@ -38,7 +38,7 @@ target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
 if(TARGET ${BINARY_NAME})
-    target_link_libraries(${BINARY_NAME} PRIVATE runtimeobject.lib)
+    target_link_libraries(${BINARY_NAME} PRIVATE runtimeobject.lib WindowsApp.lib)
 endif()
 
 # 针对插件补充（如果之前的修改没生效）
