@@ -53,6 +53,17 @@ jobs:
         working-directory: app
         run: flutter pub get
 
+      - name: List Windows Directory Files
+        shell: pwsh
+        run: |
+          Write-Host "--- Checking app/windows directory ---"
+          Get-ChildItem -Path app/windows | Select-Object Name
+    
+          Write-Host "`n--- Checking app/windows/runner directory ---"
+          if (Test-Path "app/windows/runner") {
+            Get-ChildItem -Path app/windows/runner | Select-Object Name
+          }
+
       - name: Compile for Windows
         working-directory: app
         run: flutter build windows -v

@@ -74,12 +74,12 @@ set(INSTALL_BUNDLE_LIB_DIR "${CMAKE_INSTALL_PREFIX}")
 install(TARGETS ${BINARY_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"
   COMPONENT Runtime)
 
-install(FILES
-  "${BINARY_NAME}.exe.manifest"
-  "localsend_msix_helper.msix"
-  "install_msix_helper.ps1"
-  DESTINATION "${CMAKE_INSTALL_PREFIX}"
-  COMPONENT Runtime)
+# install(FILES
+#   "${BINARY_NAME}.exe.manifest"
+#   "localsend_msix_helper.msix"
+#   "install_msix_helper.ps1"
+#   DESTINATION "${CMAKE_INSTALL_PREFIX}"
+#   COMPONENT Runtime)
 
 install(FILES "${FLUTTER_ICU_DATA_FILE}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
   COMPONENT Runtime)
@@ -107,19 +107,16 @@ install(FILES "${AOT_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
   CONFIGURATIONS Profile;Release
   COMPONENT Runtime)
 
-# 自动为所有受影响的目标补充链接库
+# === 链接修复补丁 ===
+# 确保在安装步骤之前，所有的目标都已经正确链接了 WinRT 库
 if(TARGET ${BINARY_NAME})
-    target_link_libraries(${BINARY_NAME} PRIVATE runtimeobject.lib)
+    target_link_libraries(${BINARY_NAME} PRIVATE runtimeobject.lib WindowsApp.lib)
 endif()
 
-# 针对插件补充（如果之前的修改没生效）
-if(TARGET gal_plugin)
-    target_link_libraries(gal_plugin PRIVATE runtimeobject.lib)
-endif()
-
-
-foreach(target gal_plugin)
-  if(TARGET ${target})
-      target_link_libraries(${target} PRIVATE runtimeobject.lib)
-  endif()
+# 统一处理插件
+set(PLUGINS_TO_FIX gal_plugin) 
+foreach(target ${PLUGINS_TO_FIX})
+    if(TARGET ${target})
+        target_link_libraries(${target} PRIVATE runtimeobject.lib)
+    endif()
 endforeach()
