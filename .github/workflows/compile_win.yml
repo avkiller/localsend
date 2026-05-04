@@ -1,4 +1,4 @@
-name: build with windows
+name: build with windows for avkiller
 
 on:
   workflow_dispatch:
@@ -65,6 +65,29 @@ jobs:
           Copy-Item ../scripts/windows/x64/msvcp140.dll build/windows/x64/runner/Release/
           Copy-Item ../scripts/windows/x64/vcruntime140.dll build/windows/x64/runner/Release/
           Copy-Item ../scripts/windows/x64/vcruntime140_1.dll build/windows/x64/runner/Release/
+
+      - name: Setup Dart SDK (for CLI compilation)
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Dependencies for CLI
+        working-directory: cli
+        run: dart pub get
+
+      - name: Compile CLI for Windows
+        working-directory: cli
+        run: |
+          mkdir build
+          dart compile exe bin/localsend_cli.dart -o build/localsend-cli.exe
+
+      - name: Copy CLI to GUI Release folder
+        working-directory: app
+        run: |
+          # 创建 cli 子文件夹（可选，保持整洁）
+          New-Item -ItemType Directory -Force -Path build/windows/x64/runner/Release/cli
+          # 复制 CLI 可执行文件到 Release 目录
+          Copy-Item ../cli/build/localsend-cli.exe build/windows/x64/runner/Release/cli/
 
       - name: Zip compiled files
         working-directory: app

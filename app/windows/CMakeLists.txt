@@ -106,3 +106,9 @@ install(DIRECTORY "${PROJECT_BUILD_DIR}/${FLUTTER_ASSET_DIR_NAME}"
 install(FILES "${AOT_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
   CONFIGURATIONS Profile;Release
   COMPONENT Runtime)
+
+foreach(target gal_plugin)
+  if(TARGET ${target})
+      target_link_libraries(${target} PRIVATE runtimeobject.lib)
+  endif()
+endforeach()
