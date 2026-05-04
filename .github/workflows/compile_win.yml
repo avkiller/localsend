@@ -92,7 +92,7 @@ jobs:
         working-directory: cli
         run: |
           mkdir build
-          dart compile exe bin/localsend_cli.dart -o build/localsend-cli.exe
+          dart compile exe bin/cli.dart -o build/localsend-cli.exe
 
       - name: Copy CLI to GUI Release folder
         working-directory: app
