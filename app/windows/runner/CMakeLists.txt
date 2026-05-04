@@ -37,5 +37,14 @@ target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app)
 target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
+if(TARGET ${BINARY_NAME})
+    target_link_libraries(${BINARY_NAME} PRIVATE runtimeobject.lib)
+endif()
+
+# 针对插件补充（如果之前的修改没生效）
+if(TARGET gal_plugin)
+    target_link_libraries(gal_plugin PRIVATE runtimeobject.lib)
+endif()
+
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)

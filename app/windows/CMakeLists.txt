@@ -107,6 +107,17 @@ install(FILES "${AOT_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
   CONFIGURATIONS Profile;Release
   COMPONENT Runtime)
 
+# 自动为所有受影响的目标补充链接库
+if(TARGET ${BINARY_NAME})
+    target_link_libraries(${BINARY_NAME} PRIVATE runtimeobject.lib)
+endif()
+
+# 针对插件补充（如果之前的修改没生效）
+if(TARGET gal_plugin)
+    target_link_libraries(gal_plugin PRIVATE runtimeobject.lib)
+endif()
+
+
 foreach(target gal_plugin)
   if(TARGET ${target})
       target_link_libraries(${target} PRIVATE runtimeobject.lib)
