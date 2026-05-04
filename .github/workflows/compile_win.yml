@@ -79,32 +79,58 @@ jobs:
           Copy-Item ../scripts/windows/x64/vcruntime140.dll build/windows/x64/runner/Release/
           Copy-Item ../scripts/windows/x64/vcruntime140_1.dll build/windows/x64/runner/Release/
 
-      - name: Setup Dart SDK (for CLI compilation)
-        uses: dart-lang/setup-dart@v1
-        with:
-          sdk: stable
+      # - name: Setup Dart SDK (for CLI compilation)
+      #   uses: dart-lang/setup-dart@v1
+      #   with:
+      #     sdk: stable
 
-      - name: Dependencies for CLI
-        working-directory: cli
-        run: dart pub get
+      # - name: Dependencies for CLI
+      #   working-directory: cli
+      #   run: dart pub get
 
-      - name: Compile CLI for Windows
-        working-directory: cli
-        run: |
-          mkdir build
-          dart compile exe bin/cli.dart -o build/localsend-cli.exe
+      # - name: Compile CLI for Windows
+      #   working-directory: cli
+      #   run: |
+      #     mkdir build
+      #     dart compile exe bin/cli.dart -o build/localsend-cli.exe
 
-      - name: Copy CLI to GUI Release folder
-        working-directory: app
-        run: |
-          # 创建 cli 子文件夹（可选，保持整洁）
-          New-Item -ItemType Directory -Force -Path build/windows/x64/runner/Release/cli
-          # 复制 CLI 可执行文件到 Release 目录
-          Copy-Item ../cli/build/localsend-cli.exe build/windows/x64/runner/Release/cli/
+      # - name: Copy CLI to GUI Release folder
+      #   working-directory: app
+      #   run: |
+      #     # 创建 cli 子文件夹（可选，保持整洁）
+      #     New-Item -ItemType Directory -Force -Path build/windows/x64/runner/Release/cli
+      #     # 复制 CLI 可执行文件到 Release 目录
+      #     Copy-Item ../cli/build/localsend-cli.exe build/windows/x64/runner/Release/cli/
 
       - name: Zip compiled files
         working-directory: app
-        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath LocalSend.zip
+        run: |
+          # Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath LocalSend.zip
+          # 设置变量
+          $buildDir = "build/windows/x64/runner/Release"
+
+          # 检查目录是否存在
+          if (Test-Path $buildDir) {
+            Write-Host "Cleaning up unnecessary files from $buildDir..."
+              
+            # 删除 .lib 和 .exp 文件
+            $filesToDelete = Get-ChildItem -Path $buildDir -Include *.lib,*.exp -Recurse
+            if ($filesToDelete.Count -gt 0) {
+              Write-Host "Deleting $($filesToDelete.Count) files..."
+              $filesToDelete | Remove-Item -Force
+              Write-Host "Deleted successfully."
+            } else {
+                Write-Host "No .lib or .exp files found."
+            }
+              
+            # 创建 ZIP 文件
+            Write-Host "Creating LocalSend.zip..."
+            Compress-Archive -Path "$buildDir\*" -DestinationPath "LocalSend.zip" -Force
+            Write-Host "LocalSend.zip created successfully."
+          } else {
+              Write-Error "Directory not found: $buildDir"
+          }
+
 
       - name: Upload zip
         uses: actions/upload-artifact@v6
