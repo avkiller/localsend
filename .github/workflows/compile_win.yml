@@ -55,7 +55,7 @@ jobs:
 
       - name: Compile for Windows
         working-directory: app
-        run: flutter build windows --release
+        run: flutter build windows -v
 
       - name: Create empty settings.json
         working-directory: app
