@@ -1,4 +1,4 @@
-name: Compile APK for avkiller
+name: build for avkiller
 
 on:
   workflow_dispatch:
@@ -56,7 +56,7 @@ jobs:
           ENCODED_STRING: ${{ secrets.ANDROID_KEY_PROPERTIES }}
         run: |
           echo $ENCODED_STRING | base64 -di > app/android/key.properties
-          echo "storeFile=secrets/android-keystore.jks" > app/android/key.properties
+          echo "storeFile=app/android/secrets/android-keystore.jks" > app/android/key.properties
 
       - name: Decode android-keystore.jks file
         working-directory: ${{ env.APK_BUILD_DIR }}
@@ -65,6 +65,18 @@ jobs:
         run: |
           mkdir secrets 
           echo $ENCODED_STRING | base64 -di > secrets/android-keystore.jks
+
+          echo "--- 当前工作目录 (PWD) ---"
+          pwd
+
+          echo "--- 检查目标目录是否存在 ---"
+          if [ -d "android/app/secrets" ]; then
+              echo "✅ 目录 android/app/secrets 存在。"
+              ls -l android/app/secrets
+          else
+              echo "❌ 目录不存在。实际 android/app/ 下的内容有："
+              ls -F android/app/
+          fi
           
 
       - name: Set up JDK 17
@@ -90,7 +102,7 @@ jobs:
 
       - name: Build APK
         working-directory: ${{ env.APK_BUILD_DIR }}/app
-        run: flutter build apk --split-per-abi -v
+        run: flutter build apk --split-per-abi
 
       # - name: Upload APK
       #   uses: actions/upload-artifact@v6
