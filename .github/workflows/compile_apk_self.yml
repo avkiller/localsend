@@ -104,10 +104,10 @@ jobs:
       - name: Build APK
         working-directory: ${{ env.APK_BUILD_DIR }}/app
         run: |
-        echo "--- 当前工作目录 (PWD) ---"
-        pwd
-        ls -al
-        flutter build apk --split-per-abi
+          echo "--- 当前工作目录 (PWD) ---"
+          pwd
+          ls -al
+          flutter build apk --split-per-abi
 
       # - name: Upload APK
       #   uses: actions/upload-artifact@v6
