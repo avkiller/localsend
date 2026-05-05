@@ -68,15 +68,16 @@ jobs:
 
           echo "--- 当前工作目录 (PWD) ---"
           pwd
+          ls -al
 
-          echo "--- 检查目标目录是否存在 ---"
-          if [ -d "android/app/secrets" ]; then
-              echo "✅ 目录 android/app/secrets 存在。"
-              ls -l android/app/secrets
-          else
-              echo "❌ 目录不存在。实际 android/app/ 下的内容有："
-              ls -F android/app/
-          fi
+          # echo "--- 检查目标目录是否存在 ---"
+          # if [ -d "android/app/secrets" ]; then
+          #     echo "✅ 目录 android/app/secrets 存在。"
+          #     ls -l android/app/secrets
+          # else
+          #     echo "❌ 目录不存在。实际 android/app/ 下的内容有："
+          #     ls -F android/app/
+          # fi
           
 
       - name: Set up JDK 17
@@ -102,7 +103,11 @@ jobs:
 
       - name: Build APK
         working-directory: ${{ env.APK_BUILD_DIR }}/app
-        run: flutter build apk --split-per-abi
+        run: |
+        echo "--- 当前工作目录 (PWD) ---"
+        pwd
+        ls -al
+        flutter build apk --split-per-abi
 
       # - name: Upload APK
       #   uses: actions/upload-artifact@v6
