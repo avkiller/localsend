@@ -11,23 +11,22 @@
 #include <winrt/windows.applicationmodel.datatransfer.sharetarget.h>
 #include <winrt/windows.data.json.h>
 
-using winrt::Windows::ApplicationModel::AppInstance;
-using winrt::Windows::ApplicationModel::Activation::ActivationKind;
-using winrt::Windows::ApplicationModel::Activation::ShareTargetActivatedEventArgs;
-using winrt::Windows::ApplicationModel::DataTransfer::DataPackageView;
-using winrt::Windows::ApplicationModel::DataTransfer::StandardDataFormats;
-using winrt::Windows::Data::Json::JsonArray;
-using winrt::Windows::Data::Json::JsonObject;
-using winrt::Windows::Data::Json::JsonValue;
+using namespace winrt;
+using namespace ::Windows::ApplicationModel;
+using namespace ::Windows::ApplicationModel::Activation;
+using namespace ::Windows::ApplicationModel::DataTransfer;
+using namespace ::Windows::Data::Json;
 
-enum class SharedAttachmentType {
-  IMAGE,
-  VIDEO,
-  AUDIO,
-  FILE,
+enum class SharedAttachmentType
+{
+  IMAGE = 0,
+  VIDEO = 1,
+  AUDIO = 2,
+  FILE = 3,
 };
 
-bool IsRunningWithIdentity() {
+bool IsRunningWithIdentity()
+{
   constexpr SIZE_T kPackageNameMaxLength = 1024;
   UINT32 length = kPackageNameMaxLength;
   wchar_t packageName[kPackageNameMaxLength];
@@ -36,34 +35,58 @@ bool IsRunningWithIdentity() {
   return (result == ERROR_SUCCESS);
 }
 
-winrt::hstring GetSharedMedia() {
-  auto args = AppInstance::GetActivatedEventArgs();
-  if (args == nullptr)
-    return winrt::hstring();
-  if (args.Kind() != ActivationKind::ShareTarget)
-    return winrt::hstring();
-  auto share_target_args = args.as<ShareTargetActivatedEventArgs>();
-  auto op = share_target_args.ShareOperation();
-  auto data = op.Data();
-  JsonObject json;
-  if (data.Contains(StandardDataFormats::Text())) {
-    auto text = data.GetTextAsync().get();
-    json.SetNamedValue(L"content", JsonValue::CreateStringValue(text));
-  }
-  if (data.Contains(StandardDataFormats::Uri())) {
-    auto uri = data.GetUriAsync().get();
-    json.SetNamedValue(L"content", JsonValue::CreateStringValue(uri.ToString()));
-  }
-  if (data.Contains(StandardDataFormats::StorageItems())) {
-    JsonArray attachments;
-    auto storage_items = data.GetStorageItemsAsync().get();
-    for (const auto& item : storage_items) {
-      JsonObject attachment;
-      attachment.SetNamedValue(L"type", JsonValue::CreateNumberValue(double(SharedAttachmentType::FILE)));
-      attachment.SetNamedValue(L"path", JsonValue::CreateStringValue(item.Path()));
-      attachments.Append(attachment);
+winrt::hstring GetSharedMedia()
+{
+  try
+  {
+    auto args = AppInstance::GetActivatedEventArgs();
+
+    // 2. 检查是否由“发送到”或“分享”触发
+    if (args == nullptr || args.Kind() != ActivationKind::ShareTarget)
+    {
+      return winrt::hstring();
     }
-    json.SetNamedValue(L"attachments", attachments);
+
+    // 3. 【关键补全】获取 ShareTarget 参数并提取 op (ShareOperation)
+    auto share_target_args = args.as<ShareTargetActivatedEventArgs>();
+    auto op = share_target_args.ShareOperation();
+    auto data = op.Data();
+    JsonObject json;
+    if (data.Contains(StandardDataFormats::Text()))
+    {
+      auto text = data.GetTextAsync().get();
+      json.SetNamedValue(L"content", JsonValue::CreateStringValue(text));
+    }
+    if (data.Contains(StandardDataFormats::Uri()))
+    {
+      auto uri = data.GetUriAsync().get();
+      json.SetNamedValue(L"content", JsonValue::CreateStringValue(uri.ToString()));
+    }
+    if (data.Contains(StandardDataFormats::StorageItems()))
+    {
+      JsonArray attachments;
+      auto storage_items = data.GetStorageItemsAsync().get();
+      for (const auto &item : storage_items)
+      {
+        JsonObject attachment;
+        attachment.SetNamedValue(L"type", JsonValue::CreateNumberValue(static_cast<double>(SharedAttachmentType::FILE)));
+        attachment.SetNamedValue(L"path", JsonValue::CreateStringValue(item.Path()));
+        attachments.Append(attachment);
+      }
+      json.SetNamedValue(L"attachments", attachments);
+    }
+    op.ReportCompleted();
+    return json.Stringify();
   }
-  return json.Stringify();
+  catch (const winrt::hresult_error &e)
+  {
+    // 捕获 WinRT 错误（如 .get() 产生的死锁或权限异常），防止程序崩溃
+    OutputDebugStringW(e.message().c_str());
+    return winrt::hstring();
+  }
+  catch (...)
+  {
+    // 确保任何未知错误都不会导致实例锁死
+    return winrt::hstring();
+  }
 }
