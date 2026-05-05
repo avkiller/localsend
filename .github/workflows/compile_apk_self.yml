@@ -56,7 +56,9 @@ jobs:
           ENCODED_STRING: ${{ secrets.ANDROID_KEY_PROPERTIES }}
         run: |
           echo $ENCODED_STRING | base64 -di > app/android/key.properties
-          echo "storeFile=../../../secrets/android-keystore.jks" > app/android/key.properties
+          echo "storeFile=../../../secrets/android-keystore.jks" >> app/android/key.properties
+
+          echo "key.properties line count: $(wc -l < app/android/key.properties)"
 
       - name: Decode android-keystore.jks file
         working-directory: ${{ env.APK_BUILD_DIR }}
