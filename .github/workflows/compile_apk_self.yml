@@ -35,8 +35,8 @@ jobs:
      permissions:
       contents: write
     env:
-          VERSION: ${{ inputs.version }}
-          TAG_NAME: ${{ inputs.version }}
+      VERSION: ${{ inputs.version }}
+      TAG_NAME: ${{ inputs.version }}
 
     steps:
       - name: Checkout repository
