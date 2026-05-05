@@ -1,4 +1,4 @@
-name: build for avkiller
+name: build Android for avkiller
 
 on:
   workflow_dispatch:
