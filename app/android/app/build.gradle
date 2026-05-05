@@ -90,17 +90,17 @@ flutter {
 
 // To comply with F-Droid version code schema
 // https://github.com/localsend/localsend/issues/1534
-// 1. 删除脚本顶部的 import com.android.build.OutputFile
 
 ext.abiCodes = ["x86_64": 1, "armeabi-v7a": 2, "arm64-v8a": 3]
 
 android.applicationVariants.all { variant ->
-    variant.outputs.each { output ->
-        // 直接使用字符串 "ABI" 替代 OutputFile.ABI
-        def abiName = output.getFilter("ABI") 
+    variant.outputs.configureEach { output ->
+        // 使用更安全的配置方式获取 ABI
+        def abiName = output.getFilter("ABI")
         def abiVersionCode = project.ext.abiCodes.get(abiName)
-        
+
         if (abiVersionCode != null) {
+            // 直接设置属性，避免通过 OutputFile 接口
             output.versionCodeOverride = variant.versionCode * 10 + abiVersionCode
         }
     }
