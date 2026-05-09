@@ -29,11 +29,7 @@ class FavoriteDeviceMapper extends ClassMapperBase<FavoriteDevice> {
     _$fingerprint,
   );
   static String _$ip(FavoriteDevice v) => v.ip;
-  static const Field<FavoriteDevice, String> _f$ip = Field(
-    'ip',
-    _$ip,
-    opt: true,
-  );
+  static const Field<FavoriteDevice, String> _f$ip = Field('ip', _$ip);
   static int _$port(FavoriteDevice v) => v.port;
   static const Field<FavoriteDevice, int> _f$port = Field('port', _$port);
   static String _$alias(FavoriteDevice v) => v.alias;

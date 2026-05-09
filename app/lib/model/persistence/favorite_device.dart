@@ -22,7 +22,7 @@ class FavoriteDevice with FavoriteDeviceMappable {
   const FavoriteDevice({
     required this.id,
     required this.fingerprint,
-    this.ip,
+    required this.ip,
     required this.port,
     required this.alias,
     this.signalingId,
