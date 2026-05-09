@@ -9,7 +9,7 @@ const _uuid = Uuid();
 class FavoriteDevice with FavoriteDeviceMappable {
   final String id;
   final String fingerprint;
-  final String? ip;
+  final String ip;
   final int port;
   final String alias;
   final String? signalingId;
@@ -39,7 +39,7 @@ class FavoriteDevice with FavoriteDeviceMappable {
     return FavoriteDevice(
       id: _uuid.v1(),
       fingerprint: fingerprint,
-      ip: ip,
+      ip: ip ?? '',
       signalingId: signalingId,
       port: port,
       alias: alias,
