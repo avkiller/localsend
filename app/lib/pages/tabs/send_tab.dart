@@ -588,5 +588,6 @@ extension on SessionStatus {
       case SessionStatus.canceledByReceiver:
         return t.progressPage.total.title.canceledReceiver;
     }
+    return null;
   }
 }

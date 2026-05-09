@@ -29,11 +29,21 @@ class FavoriteDeviceMapper extends ClassMapperBase<FavoriteDevice> {
     _$fingerprint,
   );
   static String _$ip(FavoriteDevice v) => v.ip;
-  static const Field<FavoriteDevice, String> _f$ip = Field('ip', _$ip);
+  static const Field<FavoriteDevice, String> _f$ip = Field(
+    'ip',
+    _$ip,
+    opt: true,
+  );
   static int _$port(FavoriteDevice v) => v.port;
   static const Field<FavoriteDevice, int> _f$port = Field('port', _$port);
   static String _$alias(FavoriteDevice v) => v.alias;
   static const Field<FavoriteDevice, String> _f$alias = Field('alias', _$alias);
+  static String? _$signalingId(FavoriteDevice v) => v.signalingId;
+  static const Field<FavoriteDevice, String> _f$signalingId = Field(
+    'signalingId',
+    _$signalingId,
+    opt: true,
+  );
   static bool _$customAlias(FavoriteDevice v) => v.customAlias;
   static const Field<FavoriteDevice, bool> _f$customAlias = Field(
     'customAlias',
@@ -49,6 +59,7 @@ class FavoriteDeviceMapper extends ClassMapperBase<FavoriteDevice> {
     #ip: _f$ip,
     #port: _f$port,
     #alias: _f$alias,
+    #signalingId: _f$signalingId,
     #customAlias: _f$customAlias,
   };
 
@@ -59,6 +70,7 @@ class FavoriteDeviceMapper extends ClassMapperBase<FavoriteDevice> {
       ip: data.dec(_f$ip),
       port: data.dec(_f$port),
       alias: data.dec(_f$alias),
+      signalingId: data.dec(_f$signalingId),
       customAlias: data.dec(_f$customAlias),
     );
   }
@@ -131,6 +143,7 @@ abstract class FavoriteDeviceCopyWith<$R, $In extends FavoriteDevice, $Out>
     String? ip,
     int? port,
     String? alias,
+    String? signalingId,
     bool? customAlias,
   });
   FavoriteDeviceCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
@@ -153,6 +166,7 @@ class _FavoriteDeviceCopyWithImpl<$R, $Out>
     String? ip,
     int? port,
     String? alias,
+    Object? signalingId = $none,
     bool? customAlias,
   }) => $apply(
     FieldCopyWithData({
@@ -161,6 +175,7 @@ class _FavoriteDeviceCopyWithImpl<$R, $Out>
       if (ip != null) #ip: ip,
       if (port != null) #port: port,
       if (alias != null) #alias: alias,
+      if (signalingId != $none) #signalingId: signalingId,
       if (customAlias != null) #customAlias: customAlias,
     }),
   );
@@ -171,6 +186,7 @@ class _FavoriteDeviceCopyWithImpl<$R, $Out>
     ip: data.get(#ip, or: $value.ip),
     port: data.get(#port, or: $value.port),
     alias: data.get(#alias, or: $value.alias),
+    signalingId: data.get(#signalingId, or: $value.signalingId),
     customAlias: data.get(#customAlias, or: $value.customAlias),
   );
 

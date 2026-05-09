@@ -84,5 +84,6 @@ extension on BrowserName {
       case BrowserName.unknown:
         return null;
     }
+    return null;
   }
 }
