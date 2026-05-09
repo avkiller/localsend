@@ -9,9 +9,10 @@ const _uuid = Uuid();
 class FavoriteDevice with FavoriteDeviceMappable {
   final String id;
   final String fingerprint;
-  final String ip;
+  final String? ip;
   final int port;
   final String alias;
+  final String? signalingId;
 
   /// If true, the alias was set by the user.
   /// If false, the alias is derived from the original device alias and
@@ -21,15 +22,17 @@ class FavoriteDevice with FavoriteDeviceMappable {
   const FavoriteDevice({
     required this.id,
     required this.fingerprint,
-    required this.ip,
+    this.ip,
     required this.port,
     required this.alias,
+    this.signalingId,
     this.customAlias = false,
   });
 
   factory FavoriteDevice.fromValues({
     required String fingerprint,
-    required String ip,
+    String? ip,
+    String? signalingId,
     required int port,
     required String alias,
   }) {
@@ -37,6 +40,7 @@ class FavoriteDevice with FavoriteDeviceMappable {
       id: _uuid.v1(),
       fingerprint: fingerprint,
       ip: ip,
+      signalingId: signalingId,
       port: port,
       alias: alias,
       customAlias: false,
