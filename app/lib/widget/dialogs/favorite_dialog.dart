@@ -86,7 +86,7 @@ class _FavoritesDialogState extends State<FavoritesDialog> with Refena {
               t.dialogs.favoriteDialog.noFavorites,
               style: const TextStyle(color: Colors.grey),
             ),
-          for (final favori  te in favorites)
+          for (final favorite  te in favorites)
             Row(
               children: [
                 Expanded(
