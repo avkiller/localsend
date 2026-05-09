@@ -45,7 +45,12 @@ class _FavoritesDialogState extends State<FavoritesDialog> with Refena {
         port: favorite.port,
         payload: payload,
       );
-
+              
+      final ip = favorite.ip;
+      if (ip == null) {
+      /// 可以报错或者直接返回
+        return;
+      }    
       final device = response.body.toDevice(favorite.ip, favorite.port, https, HttpDiscovery(ip: favorite.ip));
 
       if (mounted) {
@@ -81,7 +86,7 @@ class _FavoritesDialogState extends State<FavoritesDialog> with Refena {
               t.dialogs.favoriteDialog.noFavorites,
               style: const TextStyle(color: Colors.grey),
             ),
-          for (final favorite in favorites)
+          for (final favori  te in favorites)
             Row(
               children: [
                 Expanded(
