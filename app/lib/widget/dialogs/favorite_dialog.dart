@@ -33,6 +33,7 @@ class _FavoritesDialogState extends State<FavoritesDialog> with Refena {
     });
 
     final https = ref.read(settingsProvider).https;
+    String? rawBody;
 
     try {
       final payload = ref.read(deviceFullInfoProvider).toRegisterDto();
@@ -45,7 +46,7 @@ class _FavoritesDialogState extends State<FavoritesDialog> with Refena {
         port: favorite.port,
         payload: payload,
       );
-               
+      rawBody = response.body.toString();          
       final device = response.body.toDevice(favorite.ip, favorite.port, https, HttpDiscovery(ip: favorite.ip));
 
       if (mounted) {
@@ -54,7 +55,8 @@ class _FavoritesDialogState extends State<FavoritesDialog> with Refena {
     } catch (e) {
       setState(() {
         _fetching = false;
-        _error = e.toString();
+        // _error = e.toString();
+        _error = "$e\n\n: ${rawBody ?? 'no data'}";
       });
     }
   }
