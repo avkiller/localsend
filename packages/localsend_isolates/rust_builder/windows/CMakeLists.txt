@@ -9,7 +9,7 @@ set(PROJECT_NAME "rust_lib_localsend_app")
 project(${PROJECT_NAME} LANGUAGES CXX)
 
 include("../cargokit/cmake/cargokit.cmake")
-apply_cargokit(${PROJECT_NAME} ../../../../../../../../../packages/localsend_isolates/rust
+apply_cargokit(${PROJECT_NAME} ../../../../../../../packages/localsend_isolates/rust
  rust_lib_localsend_app "")
 
 # List of absolute paths to libraries that should be bundled with the plugin.
