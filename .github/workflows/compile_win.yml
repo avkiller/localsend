@@ -78,8 +78,13 @@ jobs:
 
       - name: Compile for Windows
         working-directory: app
+        env:
+          FLUTTER_ROOT: ${{ env.FLUTTER_ROOT }} 
+          CARGOKIT_TOOL_TEMP_DIR: ${{ github.workspace }}\build\cargokit_temp
+        shell: pwsh
         run: |
-          flutter build windows
+          New-Item -ItemType Directory -Force -Path "${{ github.workspace }}\build\cargokit_temp"
+          flutter build windows -- -v /v:n
 
       - name: Create empty settings.json
         working-directory: app
