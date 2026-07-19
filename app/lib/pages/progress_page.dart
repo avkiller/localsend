@@ -2,9 +2,6 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:bitsdojo_window/bitsdojo_window.dart';
-import 'package:common/model/dto/file_dto.dart';
-import 'package:common/model/file_status.dart';
-import 'package:common/model/session_status.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:localsend_app/config/theme.dart';
@@ -26,6 +23,9 @@ import 'package:localsend_app/widget/custom_progress_bar.dart';
 import 'package:localsend_app/widget/dialogs/cancel_session_dialog.dart';
 import 'package:localsend_app/widget/dialogs/error_dialog.dart';
 import 'package:localsend_app/widget/file_thumbnail.dart';
+import 'package:localsend_isolates/model/dto/file_dto.dart';
+import 'package:localsend_isolates/model/file_status.dart';
+import 'package:localsend_isolates/model/session_status.dart';
 import 'package:refena_flutter/refena_flutter.dart';
 import 'package:routerino/routerino.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -418,7 +418,6 @@ class _ProgressPageState extends State<ProgressPage> with Refena {
                                   .notifier(sendProvider)
                                   .sendFile(
                                     sessionId: widget.sessionId,
-                                    isolateIndex: 0,
                                     file: sendSession.files[file.id]!,
                                     isRetry: true,
                                   );

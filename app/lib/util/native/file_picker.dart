@@ -1,7 +1,5 @@
 import 'dart:async';
 
-import 'package:common/model/file_type.dart';
-import 'package:common/util/sleep.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -23,6 +21,8 @@ import 'package:localsend_app/util/ui/asset_picker_translated_text_delegate.dart
 import 'package:localsend_app/widget/dialogs/loading_dialog.dart';
 import 'package:localsend_app/widget/dialogs/message_input_dialog.dart';
 import 'package:localsend_app/widget/dialogs/no_permission_dialog.dart';
+import 'package:localsend_isolates/model/file_type.dart';
+import 'package:localsend_isolates/util/sleep.dart';
 import 'package:logging/logging.dart';
 import 'package:pasteboard/pasteboard.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -40,7 +40,8 @@ enum FilePickerOption {
   media(Icons.image),
   text(Icons.subject),
   app(Icons.apps),
-  clipboard(Icons.paste);
+  clipboard(Icons.paste)
+  ;
 
   const FilePickerOption(this.icon);
 
