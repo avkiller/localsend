@@ -41,7 +41,16 @@ class CrateInfo {
   }
 
   static CrateInfo load(String manifestDir) {
-    final manifestFile = File(path.join(manifestDir, 'Cargo.toml'));
+    // 1. 获取传入路径的绝对路径对象
+    var directory = Directory(manifestDir);
+    var absoluteManifestDir = directory.absolute.path;
+
+    // 2. 如果绝对路径里包含软链接回退导致的错误（比如 Windows 的混用路径），我们尝试做一层标准化
+    absoluteManifestDir = path.normalize(absoluteManifestDir);
+
+    // 3. 打印一下此时解析出的绝对路径，方便在 GitHub Actions 日志里排查
+    print('DEBUG: Cargokit is looking for Cargo.toml at: $absoluteManifestDir');
+    final manifestFile = File(path.join(absoluteManifestDir, 'Cargo.toml'));
     final manifest = manifestFile.readAsStringSync();
     return parseManifest(manifest, fileName: manifestFile.path);
   }
