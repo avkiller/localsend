@@ -41,7 +41,11 @@ class CrateInfo {
   }
 
   static CrateInfo load(String manifestDir) {
-    final manifestFile = File(path.join(manifestDir, 'Cargo.toml'));
+    var directory = Directory(manifestDir);
+    var absoluteManifestDir = directory.absolute.path;
+    absoluteManifestDir = path.normalize(absoluteManifestDir);
+    print('DEBUG: Cargokit is looking for Cargo.toml at: $absoluteManifestDir');
+    final manifestFile = File(path.join(absoluteManifestDir, 'Cargo.toml'));
     final manifest = manifestFile.readAsStringSync();
     return parseManifest(manifest, fileName: manifestFile.path);
   }
