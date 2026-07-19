@@ -11,6 +11,7 @@ on:
 
 env:
   FLUTTER_VERSION: "3.41.9"
+  RUST_VERSION: "1.84.1"
 
 jobs:
   build:
@@ -47,6 +48,16 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: "stable"
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: ${{ env.RUST_VERSION }}
+      - name: Check rust-toolchain.toml
+        working-directory: packages/localsend_isolates
+        run: rustup show
+
       - name: Enable Long Paths
         run: Set-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem -Name LongPathsEnabled -Value 1
 
