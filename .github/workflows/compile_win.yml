@@ -84,7 +84,8 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path "${{ github.workspace }}\build\cargokit_temp"
-          flutter build windows -- -v /v:n
+          flutter build windows -v -- /v:d
+
 
       - name: Create empty settings.json
         working-directory: app
