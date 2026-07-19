@@ -1,13 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:bitsdojo_window/bitsdojo_window.dart';
-import 'package:common/api_route_builder.dart';
-import 'package:common/constants.dart';
-import 'package:common/isolate.dart';
-import 'package:common/model/dto/file_dto.dart';
-import 'package:common/model/dto/multicast_dto.dart';
-import 'package:common/util/logger.dart';
 import 'package:dart_mappable/dart_mappable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -24,33 +19,34 @@ import 'package:localsend_app/provider/network/nearby_devices_provider.dart';
 import 'package:localsend_app/provider/network/server/server_provider.dart';
 import 'package:localsend_app/provider/network/webrtc/signaling_provider.dart';
 import 'package:localsend_app/provider/persistence_provider.dart';
-
 // [FOSS_REMOVE_START]
 import 'package:localsend_app/provider/purchase_provider.dart';
-
 // [FOSS_REMOVE_END]
 import 'package:localsend_app/provider/selection/selected_sending_files_provider.dart';
 import 'package:localsend_app/provider/settings_provider.dart';
 import 'package:localsend_app/provider/tv_provider.dart';
 import 'package:localsend_app/provider/window_dimensions_provider.dart';
-import 'package:localsend_app/rust/api/logging.dart' as rust_logging;
-import 'package:localsend_app/rust/frb_generated.dart';
 import 'package:localsend_app/util/i18n.dart';
 import 'package:localsend_app/util/native/autostart_helper.dart';
 import 'package:localsend_app/util/native/cache_helper.dart';
-import 'package:localsend_app/util/native/content_uri_helper.dart';
 import 'package:localsend_app/util/native/context_menu_helper.dart';
 import 'package:localsend_app/util/native/cross_file_converters.dart';
 import 'package:localsend_app/util/native/device_info_helper.dart';
 import 'package:localsend_app/util/native/macos_channel.dart';
 import 'package:localsend_app/util/native/platform_check.dart';
 import 'package:localsend_app/util/native/tray_helper.dart';
-import 'package:localsend_app/util/rhttp.dart';
 import 'package:localsend_app/util/ui/dynamic_colors.dart';
 import 'package:localsend_app/util/ui/snackbar.dart';
+import 'package:localsend_isolates/api_route_builder.dart';
+import 'package:localsend_isolates/constants.dart';
+import 'package:localsend_isolates/isolate.dart';
+import 'package:localsend_isolates/model/dto/file_dto.dart';
+import 'package:localsend_isolates/model/dto/multicast_dto.dart';
+import 'package:localsend_isolates/rust/api/logging.dart' as rust_logging;
+import 'package:localsend_isolates/rust/frb_generated.dart';
+import 'package:localsend_isolates/util/logger.dart';
 import 'package:logging/logging.dart';
 import 'package:refena_flutter/refena_flutter.dart';
-import 'package:rhttp/rhttp.dart';
 import 'package:share_handler/share_handler.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -73,8 +69,6 @@ Future<RefenaContainer> preInit(List<String> args) async {
     }
   }
 
-  await Rhttp.init();
-
   final dynamicColors = await getDynamicColors();
 
   final persistenceService = await PersistenceService.initialize(
@@ -92,25 +86,36 @@ Future<RefenaContainer> preInit(List<String> args) async {
     // Check if this app is already open and let it "show up".
     // If this is the case, then exit the current instance.
 
-    final client = createRhttpClient(const Duration(milliseconds: 100), persistenceService.getSecurityContext());
+    final client = HttpClient();
+    client.connectionTimeout = const Duration(milliseconds: 100);
+    client.badCertificateCallback = (cert, host, port) => true;
 
     try {
-      await client.post(
-        ApiRoute.show.targetRaw(
-          '127.0.0.1',
-          persistenceService.getPort(),
-          persistenceService.isHttps(),
-          peerProtocolVersion,
-        ),
-        query: {
-          'token': persistenceService.getShowToken(),
-        },
-        body: HttpBody.json({
-          'args': args,
-        }),
-      );
-      exit(0); // Another instance does exist because no error is thrown
-    } catch (_) {}
+      final uri =
+          Uri.parse(
+            ApiRoute.show.targetRaw(
+              '127.0.0.1',
+              persistenceService.getPort(),
+              persistenceService.isHttps(),
+              peerProtocolVersion,
+            ),
+          ).replace(
+            queryParameters: {
+              'token': persistenceService.getShowToken(),
+            },
+          );
+
+      final request = await client.postUrl(uri);
+      request.headers.contentType = ContentType.json;
+      request.write(jsonEncode({'args': args}));
+      final response = await request.close().timeout(const Duration(milliseconds: 500));
+      if (response.statusCode == 200) {
+        exit(0); // Another instance does exist
+      }
+    } catch (_) {
+    } finally {
+      client.close(force: true);
+    }
 
     // initialize tray AFTER i18n has been initialized
     try {
@@ -164,11 +169,7 @@ Future<RefenaContainer> preInit(List<String> args) async {
       return IsolateController(
         initialState: ParentIsolateState.initial(
           SyncState(
-            init: () async {
-              await Rhttp.init();
-            },
             rootIsolateToken: RootIsolateToken.instance!,
-            httpClientFactory: RhttpWrapper.create,
             securityContext: persistenceService.getSecurityContext(),
             deviceInfo: ref.read(deviceInfoProvider),
             alias: settings.alias,
@@ -186,13 +187,7 @@ Future<RefenaContainer> preInit(List<String> args) async {
     }),
   );
 
-  await container
-      .redux(parentIsolateProvider)
-      .dispatchAsync(
-        IsolateSetupAction(
-          uriContentStreamResolver: AndroidUriContentStreamResolver(),
-        ),
-      );
+  await container.redux(parentIsolateProvider).dispatchAsync(IsolateSetupAction());
 
   return container;
 }

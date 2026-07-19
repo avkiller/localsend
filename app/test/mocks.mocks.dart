@@ -5,10 +5,10 @@
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'dart:async' as _i4;
 
-import 'package:common/model/device.dart' as _i12;
-import 'package:common/model/stored_security_context.dart' as _i2;
 import 'package:flutter/material.dart' as _i8;
 import 'package:localsend_app/gen/strings.g.dart' as _i10;
+import 'package:localsend_isolates/model/device.dart' as _i12;
+import 'package:localsend_isolates/model/stored_security_context.dart' as _i2;
 import 'package:localsend_app/model/persistence/color_mode.dart' as _i9;
 import 'package:localsend_app/model/persistence/favorite_device.dart' as _i6;
 import 'package:localsend_app/model/persistence/receive_history_entry.dart'
@@ -32,6 +32,7 @@ import 'package:shared_preferences/shared_preferences.dart' as _i13;
 // ignore_for_file: unnecessary_parenthesis
 // ignore_for_file: camel_case_types
 // ignore_for_file: subtype_of_sealed_class
+// ignore_for_file: invalid_use_of_internal_member
 
 class _FakeStoredSecurityContext_0 extends _i1.SmartFake
     implements _i2.StoredSecurityContext {
