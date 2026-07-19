@@ -74,9 +74,10 @@ jobs:
           Write-Host "`n--- Checking app/windows/runner directory ---"
           if (Test-Path "app/windows/runner") {
             Get-ChildItem -Path app/windows/runner | Select-Object Name
-          ｝
+          }
           
       - name: Fix Rust Build Paths
+        if: false
         shell: powershell
         run: |
            $targetDir = "D:\a\localsend\localsend\app\windows\flutter\ephemeral\rust"
