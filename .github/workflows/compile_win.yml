@@ -30,7 +30,7 @@ jobs:
 
   build_windows_zip_x86_64:
     needs: build
-    runs-on: windows-latest
+    runs-on: windows-2022
     permissions:
       contents: write
     env:
@@ -79,8 +79,6 @@ jobs:
       - name: Compile for Windows
         working-directory: app
         run: |
-          flutter clean
-          flutter pub get
           flutter build windows
 
       - name: Create empty settings.json
