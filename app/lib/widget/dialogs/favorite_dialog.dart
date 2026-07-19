@@ -33,7 +33,6 @@ class _FavoritesDialogState extends State<FavoritesDialog> with Refena {
     });
 
     final https = ref.read(settingsProvider).https;
-    String? rawBody;
 
     try {
       final payload = ref.read(deviceFullInfoProvider).toRegisterDto();
@@ -55,8 +54,7 @@ class _FavoritesDialogState extends State<FavoritesDialog> with Refena {
     } catch (e) {
       setState(() {
         _fetching = false;
-        // _error = e.toString();
-        _error = "$e\n\n: ${rawBody ?? 'no data'}";
+        _error = e.toString();
       });
     }
   }

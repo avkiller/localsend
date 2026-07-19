@@ -18,12 +18,12 @@ class RegisterDto with RegisterDtoMappable {
 
   const RegisterDto({
     required this.alias,
-    this.version = '2.1',
+    required this.version,
     required this.deviceModel,
-    this.deviceType = DeviceType.desktop,
+    required this.deviceType,
     required this.fingerprint,
-    this.port = 53317,
-    this.protocol = ProtocolType.http,
+    required this.port,
+    required this.protocol,
     required this.download,
   });
 

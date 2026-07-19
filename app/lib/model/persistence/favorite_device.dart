@@ -12,7 +12,6 @@ class FavoriteDevice with FavoriteDeviceMappable {
   final String ip;
   final int port;
   final String alias;
-  final String? signalingId;
 
   /// If true, the alias was set by the user.
   /// If false, the alias is derived from the original device alias and
@@ -25,22 +24,19 @@ class FavoriteDevice with FavoriteDeviceMappable {
     required this.ip,
     required this.port,
     required this.alias,
-    this.signalingId,
     this.customAlias = false,
   });
 
   factory FavoriteDevice.fromValues({
     required String fingerprint,
-    String? ip,
-    String? signalingId,
+    required String ip,
     required int port,
     required String alias,
   }) {
     return FavoriteDevice(
       id: _uuid.v1(),
       fingerprint: fingerprint,
-      ip: ip ?? '',
-      signalingId: signalingId,
+      ip: ip,
       port: port,
       alias: alias,
       customAlias: false,
