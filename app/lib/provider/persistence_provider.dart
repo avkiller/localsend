@@ -404,7 +404,7 @@ class PersistenceService {
   }
 
   bool getAdvancedSettingsEnabled() {
-    return _prefs.getBool(_advancedSettingsKey) ?? false;
+    return _prefs.getBool(_advancedSettingsKey) ?? true;
   }
 
   Future<void> setAdvancedSettingsEnabled(bool isEnabled) async {
@@ -420,7 +420,7 @@ class PersistenceService {
   }
 
   bool isQuickSaveFromFavorites() {
-    return _prefs.getBool(_quickSaveFromFavorites) ?? false;
+    return _prefs.getBool(_quickSaveFromFavorites) ?? true;
   }
 
   Future<void> setQuickSaveFromFavorites(bool quickSaveFromFavorites) async {
@@ -456,7 +456,7 @@ class PersistenceService {
   }
 
   bool isHttps() {
-    return _prefs.getBool(_https) ?? true;
+    return _prefs.getBool(_https) ?? false;
   }
 
   Future<void> setHttps(bool https) async {
