@@ -111,6 +111,7 @@ jobs:
           pwd
           ls -al
           flutter build apk --split-per-abi
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk build/app/outputs/flutter-apk/localsend-v8a-release.apk 
 
       # - name: Upload APK
       #   uses: actions/upload-artifact@v6
@@ -126,7 +127,7 @@ jobs:
         with:
           tag_name: ${{ env.TAG_NAME }}
           files: |
-            ${{ env.APK_BUILD_DIR }}/app/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+            ${{ env.APK_BUILD_DIR }}/app/build/app/outputs/flutter-apk/localsend-v8a-release.apk
           draft: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN}}
