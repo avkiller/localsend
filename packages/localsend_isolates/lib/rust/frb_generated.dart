@@ -12,6 +12,7 @@ import 'package:localsend_isolates/rust/api/crypto.dart';
 import 'package:localsend_isolates/rust/api/http.dart';
 import 'package:localsend_isolates/rust/api/logging.dart';
 import 'package:localsend_isolates/rust/api/model.dart';
+import 'package:localsend_isolates/rust/api/multicast.dart';
 import 'package:localsend_isolates/rust/api/server.dart';
 import 'package:localsend_isolates/rust/api/stream.dart';
 import 'package:localsend_isolates/rust/api/webrtc.dart';
@@ -73,7 +74,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 1193619754;
+  int get rustContentHash => -286605518;
 
   static const kDefaultExternalLibraryLoaderConfig = ExternalLibraryLoaderConfig(
     stem: 'rust_lib_localsend_app',
@@ -127,6 +128,7 @@ abstract class RustLibApi extends BaseApi {
     required PrepareUploadRequestDto payload,
     String? publicKey,
     String? pin,
+    required RsCancellationToken cancelToken,
   });
 
   Future<ResultWithPublicKeyRegisterResponseDto> crateApiHttpRsHttpClientRegister({
@@ -155,11 +157,11 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiServerRsHttpServerCancelSession({required RsHttpServer that, required String sessionId});
 
+  Future<void> crateApiServerRsHttpServerFailFileDownload({required RsHttpServer that, required String sessionId, required String fileId});
+
+  Future<void> crateApiServerRsHttpServerFailFileUpload({required RsHttpServer that, required String sessionId, required String fileId});
+
   Stream<RsServerEvent> crateApiServerRsHttpServerListen({required RsHttpServer that});
-
-  Future<void> crateApiServerRsHttpServerRejectFileDownload({required RsHttpServer that, required String sessionId, required String fileId});
-
-  Future<void> crateApiServerRsHttpServerRejectFileUpload({required RsHttpServer that, required String sessionId, required String fileId});
 
   Future<void> crateApiServerRsHttpServerRespondFileDownload({
     required RsHttpServer that,
@@ -183,6 +185,12 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiServerRsHttpServerRespondPrepareUpload({required RsHttpServer that, List<String>? acceptedFileIds});
 
   Future<void> crateApiServerRsHttpServerStop({required RsHttpServer that});
+
+  Future<void> crateApiMulticastRsMulticastAnnounce({required RsMulticast that});
+
+  Stream<RsMulticastDiscovered> crateApiMulticastRsMulticastListen({required RsMulticast that});
+
+  Future<void> crateApiMulticastRsMulticastStop({required RsMulticast that});
 
   Future<String> crateApiWebrtcRtcFileReceiverGetFileId({required RtcFileReceiver that});
 
@@ -225,7 +233,13 @@ abstract class RustLibApi extends BaseApi {
 
   RsCancellationToken crateApiCancelCreateCancellationToken();
 
-  RsHttpClient crateApiHttpCreateClient({required String privateKey, required String cert, required LsHttpClientVersion version, int? timeoutMs});
+  RsHttpClient crateApiHttpCreateClient({
+    required String privateKey,
+    required String cert,
+    required LsHttpClientVersion version,
+    String? expectedFingerprint,
+    int? timeoutMs,
+  });
 
   Future<(Dart2RustStreamSink, Dart2RustStreamReceiver)> crateApiStreamCreateStream();
 
@@ -233,7 +247,23 @@ abstract class RustLibApi extends BaseApi {
 
   Future<KeyPair> crateApiCryptoGenerateKeyPair();
 
-  Future<String> crateApiCryptoHashFile({String? path, int? fileDescriptor, Uint8List? bytes, required RsCancellationToken cancelToken});
+  Future<SecurityContext> crateApiCryptoGenerateSecurityContext();
+
+  Stream<RsHashFileEvent> crateApiCryptoHashFile({String? path, int? fileDescriptor, Uint8List? bytes, required RsCancellationToken cancelToken});
+
+  Future<RsMulticast> crateApiMulticastStartMulticast({
+    required String group,
+    required int port,
+    List<String>? networkWhitelist,
+    List<String>? networkBlacklist,
+    required String alias,
+    required String version,
+    String? deviceModel,
+    DeviceType? deviceType,
+    required String fingerprint,
+    required ProtocolTypeV2 protocol,
+    required bool download,
+  });
 
   Future<RsHttpServer> crateApiServerStartServer({
     required int port,
@@ -309,6 +339,12 @@ abstract class RustLibApi extends BaseApi {
   RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_RsHttpServer;
 
   CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_RsHttpServerPtr;
+
+  RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_RsMulticast;
+
+  RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_RsMulticast;
+
+  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_RsMulticastPtr;
 }
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
@@ -541,6 +577,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required PrepareUploadRequestDto payload,
     String? publicKey,
     String? pin,
+    required RsCancellationToken cancelToken,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -553,6 +590,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sse_encode_box_autoadd_prepare_upload_request_dto(payload, serializer);
           sse_encode_opt_String(publicKey, serializer);
           sse_encode_opt_String(pin, serializer);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRsCancellationToken(cancelToken, serializer);
           pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 8, port: port_);
         },
         codec: SseCodec(
@@ -560,7 +598,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_rs_http_client_error,
         ),
         constMeta: kCrateApiHttpRsHttpClientPrepareUploadConstMeta,
-        argValues: [that, protocol, ip, port, payload, publicKey, pin],
+        argValues: [that, protocol, ip, port, payload, publicKey, pin, cancelToken],
         apiImpl: this,
       ),
     );
@@ -568,7 +606,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiHttpRsHttpClientPrepareUploadConstMeta => const TaskConstMeta(
     debugName: 'RsHttpClient_prepare_upload',
-    argNames: ['that', 'protocol', 'ip', 'port', 'payload', 'publicKey', 'pin'],
+    argNames: ['that', 'protocol', 'ip', 'port', 'payload', 'publicKey', 'pin', 'cancelToken'],
   );
 
   @override
@@ -707,6 +745,60 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<void> crateApiServerRsHttpServerFailFileDownload({required RsHttpServer that, required String sessionId, required String fileId}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRsHttpServer(that, serializer);
+          sse_encode_String(sessionId, serializer);
+          sse_encode_String(fileId, serializer);
+          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 12, port: port_);
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiServerRsHttpServerFailFileDownloadConstMeta,
+        argValues: [that, sessionId, fileId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiServerRsHttpServerFailFileDownloadConstMeta => const TaskConstMeta(
+    debugName: 'RsHttpServer_fail_file_download',
+    argNames: ['that', 'sessionId', 'fileId'],
+  );
+
+  @override
+  Future<void> crateApiServerRsHttpServerFailFileUpload({required RsHttpServer that, required String sessionId, required String fileId}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRsHttpServer(that, serializer);
+          sse_encode_String(sessionId, serializer);
+          sse_encode_String(fileId, serializer);
+          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 13, port: port_);
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiServerRsHttpServerFailFileUploadConstMeta,
+        argValues: [that, sessionId, fileId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiServerRsHttpServerFailFileUploadConstMeta => const TaskConstMeta(
+    debugName: 'RsHttpServer_fail_file_upload',
+    argNames: ['that', 'sessionId', 'fileId'],
+  );
+
+  @override
   Stream<RsServerEvent> crateApiServerRsHttpServerListen({required RsHttpServer that}) {
     final sink = RustStreamSink<RsServerEvent>();
     unawaited(
@@ -716,7 +808,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             final serializer = SseSerializer(generalizedFrbRustBinding);
             sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRsHttpServer(that, serializer);
             sse_encode_StreamSink_rs_server_event_Sse(sink, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 12, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 14, port: port_);
           },
           codec: SseCodec(
             decodeSuccessData: sse_decode_unit,
@@ -734,60 +826,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiServerRsHttpServerListenConstMeta => const TaskConstMeta(
     debugName: 'RsHttpServer_listen',
     argNames: ['that', 'sink'],
-  );
-
-  @override
-  Future<void> crateApiServerRsHttpServerRejectFileDownload({required RsHttpServer that, required String sessionId, required String fileId}) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRsHttpServer(that, serializer);
-          sse_encode_String(sessionId, serializer);
-          sse_encode_String(fileId, serializer);
-          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 13, port: port_);
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiServerRsHttpServerRejectFileDownloadConstMeta,
-        argValues: [that, sessionId, fileId],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiServerRsHttpServerRejectFileDownloadConstMeta => const TaskConstMeta(
-    debugName: 'RsHttpServer_reject_file_download',
-    argNames: ['that', 'sessionId', 'fileId'],
-  );
-
-  @override
-  Future<void> crateApiServerRsHttpServerRejectFileUpload({required RsHttpServer that, required String sessionId, required String fileId}) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRsHttpServer(that, serializer);
-          sse_encode_String(sessionId, serializer);
-          sse_encode_String(fileId, serializer);
-          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 14, port: port_);
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiServerRsHttpServerRejectFileUploadConstMeta,
-        argValues: [that, sessionId, fileId],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiServerRsHttpServerRejectFileUploadConstMeta => const TaskConstMeta(
-    debugName: 'RsHttpServer_reject_file_upload',
-    argNames: ['that', 'sessionId', 'fileId'],
   );
 
   @override
@@ -946,13 +984,93 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<void> crateApiMulticastRsMulticastAnnounce({required RsMulticast that}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRsMulticast(that, serializer);
+          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 20, port: port_);
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiMulticastRsMulticastAnnounceConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiMulticastRsMulticastAnnounceConstMeta => const TaskConstMeta(
+    debugName: 'RsMulticast_announce',
+    argNames: ['that'],
+  );
+
+  @override
+  Stream<RsMulticastDiscovered> crateApiMulticastRsMulticastListen({required RsMulticast that}) {
+    final sink = RustStreamSink<RsMulticastDiscovered>();
+    unawaited(
+      handler.executeNormal(
+        NormalTask(
+          callFfi: (port_) {
+            final serializer = SseSerializer(generalizedFrbRustBinding);
+            sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRsMulticast(that, serializer);
+            sse_encode_StreamSink_rs_multicast_discovered_Sse(sink, serializer);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 21, port: port_);
+          },
+          codec: SseCodec(
+            decodeSuccessData: sse_decode_unit,
+            decodeErrorData: null,
+          ),
+          constMeta: kCrateApiMulticastRsMulticastListenConstMeta,
+          argValues: [that, sink],
+          apiImpl: this,
+        ),
+      ),
+    );
+    return sink.stream;
+  }
+
+  TaskConstMeta get kCrateApiMulticastRsMulticastListenConstMeta => const TaskConstMeta(
+    debugName: 'RsMulticast_listen',
+    argNames: ['that', 'sink'],
+  );
+
+  @override
+  Future<void> crateApiMulticastRsMulticastStop({required RsMulticast that}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRsMulticast(that, serializer);
+          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 22, port: port_);
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiMulticastRsMulticastStopConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiMulticastRsMulticastStopConstMeta => const TaskConstMeta(
+    debugName: 'RsMulticast_stop',
+    argNames: ['that'],
+  );
+
+  @override
   Future<String> crateApiWebrtcRtcFileReceiverGetFileId({required RtcFileReceiver that}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRTCFileReceiver(that, serializer);
-          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 20, port: port_);
+          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 23, port: port_);
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -980,7 +1098,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             final serializer = SseSerializer(generalizedFrbRustBinding);
             sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRTCFileReceiver(that, serializer);
             sse_encode_StreamSink_list_prim_u_8_strict_Sse(sink, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 21, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 24, port: port_);
           },
           codec: SseCodec(
             decodeSuccessData: sse_decode_unit,
@@ -1008,7 +1126,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRTCFileSender(that, serializer);
           sse_encode_list_prim_u_8_loose(data, serializer);
-          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 22, port: port_);
+          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 25, port: port_);
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -1033,7 +1151,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRTCReceiveController(that, serializer);
-          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 23, port: port_);
+          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 26, port: port_);
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -1061,7 +1179,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             final serializer = SseSerializer(generalizedFrbRustBinding);
             sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRTCReceiveController(that, serializer);
             sse_encode_StreamSink_rtc_file_error_Sse(sink, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 24, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 27, port: port_);
           },
           codec: SseCodec(
             decodeSuccessData: sse_decode_unit,
@@ -1088,7 +1206,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRTCReceiveController(that, serializer);
-          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 25, port: port_);
+          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 28, port: port_);
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_list_file_dto,
@@ -1116,7 +1234,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             final serializer = SseSerializer(generalizedFrbRustBinding);
             sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRTCReceiveController(that, serializer);
             sse_encode_StreamSink_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRTCFileReceiver_Sse(sink, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 26, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 29, port: port_);
           },
           codec: SseCodec(
             decodeSuccessData: sse_decode_unit,
@@ -1146,7 +1264,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             final serializer = SseSerializer(generalizedFrbRustBinding);
             sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRTCReceiveController(that, serializer);
             sse_encode_StreamSink_rtc_status_Sse(sink, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 27, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 30, port: port_);
           },
           codec: SseCodec(
             decodeSuccessData: sse_decode_unit,
@@ -1174,7 +1292,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRTCReceiveController(that, serializer);
           sse_encode_box_autoadd_rtc_send_file_response(status, serializer);
-          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 28, port: port_);
+          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 31, port: port_);
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -1200,7 +1318,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRTCReceiveController(that, serializer);
           sse_encode_String(pin, serializer);
-          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 29, port: port_);
+          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 32, port: port_);
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -1226,7 +1344,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRTCReceiveController(that, serializer);
           sse_encode_Set_String_None(selection, serializer);
-          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 30, port: port_);
+          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 33, port: port_);
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -1254,7 +1372,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             final serializer = SseSerializer(generalizedFrbRustBinding);
             sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRTCSendController(that, serializer);
             sse_encode_StreamSink_rtc_file_error_Sse(sink, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 31, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 34, port: port_);
           },
           codec: SseCodec(
             decodeSuccessData: sse_decode_unit,
@@ -1281,7 +1399,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRTCSendController(that, serializer);
-          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 32, port: port_);
+          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 35, port: port_);
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_Set_String_None,
@@ -1309,7 +1427,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             final serializer = SseSerializer(generalizedFrbRustBinding);
             sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRTCSendController(that, serializer);
             sse_encode_StreamSink_rtc_status_Sse(sink, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 33, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 36, port: port_);
           },
           codec: SseCodec(
             decodeSuccessData: sse_decode_unit,
@@ -1337,7 +1455,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRTCSendController(that, serializer);
           sse_encode_String(fileId, serializer);
-          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 34, port: port_);
+          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 37, port: port_);
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRTCFileSender,
@@ -1363,7 +1481,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRTCSendController(that, serializer);
           sse_encode_String(pin, serializer);
-          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 35, port: port_);
+          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 38, port: port_);
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -1402,7 +1520,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
               onConnection,
               serializer,
             );
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 36, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 39, port: port_);
           },
           codec: SseCodec(
             decodeSuccessData: sse_decode_unit,
@@ -1428,7 +1546,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 37)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 40)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRsCancellationToken,
@@ -1447,7 +1565,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
-  RsHttpClient crateApiHttpCreateClient({required String privateKey, required String cert, required LsHttpClientVersion version, int? timeoutMs}) {
+  RsHttpClient crateApiHttpCreateClient({
+    required String privateKey,
+    required String cert,
+    required LsHttpClientVersion version,
+    String? expectedFingerprint,
+    int? timeoutMs,
+  }) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
@@ -1455,15 +1579,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sse_encode_String(privateKey, serializer);
           sse_encode_String(cert, serializer);
           sse_encode_ls_http_client_version(version, serializer);
+          sse_encode_opt_String(expectedFingerprint, serializer);
           sse_encode_opt_box_autoadd_u_32(timeoutMs, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 38)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 41)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRsHttpClient,
           decodeErrorData: sse_decode_rs_http_client_error,
         ),
         constMeta: kCrateApiHttpCreateClientConstMeta,
-        argValues: [privateKey, cert, version, timeoutMs],
+        argValues: [privateKey, cert, version, expectedFingerprint, timeoutMs],
         apiImpl: this,
       ),
     );
@@ -1471,7 +1596,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiHttpCreateClientConstMeta => const TaskConstMeta(
     debugName: 'create_client',
-    argNames: ['privateKey', 'cert', 'version', 'timeoutMs'],
+    argNames: ['privateKey', 'cert', 'version', 'expectedFingerprint', 'timeoutMs'],
   );
 
   @override
@@ -1480,7 +1605,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 39, port: port_);
+          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 42, port: port_);
         },
         codec: SseCodec(
           decodeSuccessData:
@@ -1505,7 +1630,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 40, port: port_);
+          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 43, port: port_);
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -1529,7 +1654,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 41, port: port_);
+          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 44, port: port_);
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_key_pair,
@@ -1548,31 +1673,119 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
-  Future<String> crateApiCryptoHashFile({String? path, int? fileDescriptor, Uint8List? bytes, required RsCancellationToken cancelToken}) {
+  Future<SecurityContext> crateApiCryptoGenerateSecurityContext() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_opt_String(path, serializer);
-          sse_encode_opt_box_autoadd_i_32(fileDescriptor, serializer);
-          sse_encode_opt_list_prim_u_8_strict(bytes, serializer);
-          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRsCancellationToken(cancelToken, serializer);
-          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 42, port: port_);
+          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 45, port: port_);
         },
         codec: SseCodec(
-          decodeSuccessData: sse_decode_String,
+          decodeSuccessData: sse_decode_security_context,
           decodeErrorData: sse_decode_AnyhowException,
         ),
-        constMeta: kCrateApiCryptoHashFileConstMeta,
-        argValues: [path, fileDescriptor, bytes, cancelToken],
+        constMeta: kCrateApiCryptoGenerateSecurityContextConstMeta,
+        argValues: [],
         apiImpl: this,
       ),
     );
   }
 
+  TaskConstMeta get kCrateApiCryptoGenerateSecurityContextConstMeta => const TaskConstMeta(
+    debugName: 'generate_security_context',
+    argNames: [],
+  );
+
+  @override
+  Stream<RsHashFileEvent> crateApiCryptoHashFile({String? path, int? fileDescriptor, Uint8List? bytes, required RsCancellationToken cancelToken}) {
+    final sink = RustStreamSink<RsHashFileEvent>();
+    unawaited(
+      handler.executeNormal(
+        NormalTask(
+          callFfi: (port_) {
+            final serializer = SseSerializer(generalizedFrbRustBinding);
+            sse_encode_StreamSink_rs_hash_file_event_Sse(sink, serializer);
+            sse_encode_opt_String(path, serializer);
+            sse_encode_opt_box_autoadd_i_32(fileDescriptor, serializer);
+            sse_encode_opt_list_prim_u_8_strict(bytes, serializer);
+            sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRsCancellationToken(cancelToken, serializer);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 46, port: port_);
+          },
+          codec: SseCodec(
+            decodeSuccessData: sse_decode_unit,
+            decodeErrorData: sse_decode_AnyhowException,
+          ),
+          constMeta: kCrateApiCryptoHashFileConstMeta,
+          argValues: [sink, path, fileDescriptor, bytes, cancelToken],
+          apiImpl: this,
+        ),
+      ),
+    );
+    return sink.stream;
+  }
+
   TaskConstMeta get kCrateApiCryptoHashFileConstMeta => const TaskConstMeta(
     debugName: 'hash_file',
-    argNames: ['path', 'fileDescriptor', 'bytes', 'cancelToken'],
+    argNames: ['sink', 'path', 'fileDescriptor', 'bytes', 'cancelToken'],
+  );
+
+  @override
+  Future<RsMulticast> crateApiMulticastStartMulticast({
+    required String group,
+    required int port,
+    List<String>? networkWhitelist,
+    List<String>? networkBlacklist,
+    required String alias,
+    required String version,
+    String? deviceModel,
+    DeviceType? deviceType,
+    required String fingerprint,
+    required ProtocolTypeV2 protocol,
+    required bool download,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(group, serializer);
+          sse_encode_u_16(port, serializer);
+          sse_encode_opt_list_String(networkWhitelist, serializer);
+          sse_encode_opt_list_String(networkBlacklist, serializer);
+          sse_encode_String(alias, serializer);
+          sse_encode_String(version, serializer);
+          sse_encode_opt_String(deviceModel, serializer);
+          sse_encode_opt_box_autoadd_device_type(deviceType, serializer);
+          sse_encode_String(fingerprint, serializer);
+          sse_encode_protocol_type_v_2(protocol, serializer);
+          sse_encode_bool(download, serializer);
+          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 47, port: port_);
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRsMulticast,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiMulticastStartMulticastConstMeta,
+        argValues: [group, port, networkWhitelist, networkBlacklist, alias, version, deviceModel, deviceType, fingerprint, protocol, download],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiMulticastStartMulticastConstMeta => const TaskConstMeta(
+    debugName: 'start_multicast',
+    argNames: [
+      'group',
+      'port',
+      'networkWhitelist',
+      'networkBlacklist',
+      'alias',
+      'version',
+      'deviceModel',
+      'deviceType',
+      'fingerprint',
+      'protocol',
+      'download',
+    ],
   );
 
   @override
@@ -1602,7 +1815,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sse_encode_opt_String(pin, serializer);
           sse_encode_opt_box_autoadd_web_send_params(webSend, serializer);
           sse_encode_opt_String(showToken, serializer);
-          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 43, port: port_);
+          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 48, port: port_);
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRsHttpServer,
@@ -1628,7 +1841,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(cert, serializer);
           sse_encode_String(publicKey, serializer);
-          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 44, port: port_);
+          pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 49, port: port_);
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -1736,6 +1949,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_RsHttpServer =>
       wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRsHttpServer;
 
+  RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_RsMulticast =>
+      wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRsMulticast;
+
+  RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_RsMulticast =>
+      wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRsMulticast;
+
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -1803,6 +2022,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  RsMulticast dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRsMulticast(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return RsMulticastImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
   Dart2RustStreamSink dco_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDart2RustStreamSink(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return Dart2RustStreamSinkImpl.frbInternalDcoDecode(raw as List<dynamic>);
@@ -1860,6 +2085,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   RsHttpServer dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRsHttpServer(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return RsHttpServerImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  RsMulticast dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRsMulticast(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return RsMulticastImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -1950,6 +2181,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  RsMulticast dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRsMulticast(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return RsMulticastImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
   Set<String> dco_decode_Set_String_None(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return Set.from(dco_decode_list_String(raw));
@@ -1971,6 +2208,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   RustStreamSink<Uint8List> dco_decode_StreamSink_list_prim_u_8_strict_Sse(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    throw UnimplementedError();
+  }
+
+  @protected
+  RustStreamSink<RsHashFileEvent> dco_decode_StreamSink_rs_hash_file_event_Sse(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    throw UnimplementedError();
+  }
+
+  @protected
+  RustStreamSink<RsMulticastDiscovered> dco_decode_StreamSink_rs_multicast_discovered_Sse(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     throw UnimplementedError();
   }
@@ -2284,6 +2533,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  MulticastMessageV2 dco_decode_multicast_message_v_2(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 8) throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    return MulticastMessageV2(
+      alias: dco_decode_String(arr[0]),
+      version: dco_decode_String(arr[1]),
+      deviceModel: dco_decode_opt_String(arr[2]),
+      deviceType: dco_decode_opt_box_autoadd_device_type(arr[3]),
+      fingerprint: dco_decode_String(arr[4]),
+      port: dco_decode_u_16(arr[5]),
+      protocol: dco_decode_protocol_type_v_2(arr[6]),
+      download: dco_decode_bool(arr[7]),
+    );
+  }
+
+  @protected
   String? dco_decode_opt_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_String(raw);
@@ -2536,6 +2802,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  RsHashFileEvent dco_decode_rs_hash_file_event(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return RsHashFileEvent_Progress(
+          bytes: dco_decode_u_64(raw[1]),
+        );
+      case 1:
+        return RsHashFileEvent_Done(
+          hash: dco_decode_String(raw[1]),
+        );
+      default:
+        throw Exception('unreachable');
+    }
+  }
+
+  @protected
   RsHttpClientError dco_decode_rs_http_client_error(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     switch (raw[0]) {
@@ -2563,6 +2846,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       default:
         throw Exception('unreachable');
     }
+  }
+
+  @protected
+  RsMulticastDiscovered dco_decode_rs_multicast_discovered(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2) throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return RsMulticastDiscovered(
+      ip: dco_decode_String(arr[0]),
+      message: dco_decode_multicast_message_v_2(arr[1]),
+    );
   }
 
   @protected
@@ -2671,6 +2965,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       default:
         throw Exception('unreachable');
     }
+  }
+
+  @protected
+  SecurityContext dco_decode_security_context(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4) throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return SecurityContext(
+      privateKey: dco_decode_String(arr[0]),
+      publicKey: dco_decode_String(arr[1]),
+      certificate: dco_decode_String(arr[2]),
+      certificateHash: dco_decode_String(arr[3]),
+    );
   }
 
   @protected
@@ -2885,6 +3192,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  RsMulticast sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRsMulticast(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return RsMulticastImpl.frbInternalSseDecode(sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
   Dart2RustStreamSink sse_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDart2RustStreamSink(
     SseDeserializer deserializer,
   ) {
@@ -2954,6 +3267,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   RsHttpServer sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRsHttpServer(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return RsHttpServerImpl.frbInternalSseDecode(sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  RsMulticast sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRsMulticast(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return RsMulticastImpl.frbInternalSseDecode(sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
   }
 
   @protected
@@ -3040,6 +3359,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  RsMulticast sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRsMulticast(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return RsMulticastImpl.frbInternalSseDecode(sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
   Set<String> sse_decode_Set_String_None(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_list_String(deserializer);
@@ -3062,6 +3387,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   RustStreamSink<Uint8List> sse_decode_StreamSink_list_prim_u_8_strict_Sse(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    throw UnimplementedError('Unreachable ()');
+  }
+
+  @protected
+  RustStreamSink<RsHashFileEvent> sse_decode_StreamSink_rs_hash_file_event_Sse(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    throw UnimplementedError('Unreachable ()');
+  }
+
+  @protected
+  RustStreamSink<RsMulticastDiscovered> sse_decode_StreamSink_rs_multicast_discovered_Sse(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     throw UnimplementedError('Unreachable ()');
   }
@@ -3401,6 +3738,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  MulticastMessageV2 sse_decode_multicast_message_v_2(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_alias = sse_decode_String(deserializer);
+    var var_version = sse_decode_String(deserializer);
+    var var_deviceModel = sse_decode_opt_String(deserializer);
+    var var_deviceType = sse_decode_opt_box_autoadd_device_type(deserializer);
+    var var_fingerprint = sse_decode_String(deserializer);
+    var var_port = sse_decode_u_16(deserializer);
+    var var_protocol = sse_decode_protocol_type_v_2(deserializer);
+    var var_download = sse_decode_bool(deserializer);
+    return MulticastMessageV2(
+      alias: var_alias,
+      version: var_version,
+      deviceModel: var_deviceModel,
+      deviceType: var_deviceType,
+      fingerprint: var_fingerprint,
+      port: var_port,
+      protocol: var_protocol,
+      download: var_download,
+    );
+  }
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -3703,6 +4063,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  RsHashFileEvent sse_decode_rs_hash_file_event(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        var var_bytes = sse_decode_u_64(deserializer);
+        return RsHashFileEvent_Progress(bytes: var_bytes);
+      case 1:
+        var var_hash = sse_decode_String(deserializer);
+        return RsHashFileEvent_Done(hash: var_hash);
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
   RsHttpClientError sse_decode_rs_http_client_error(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -3727,6 +4104,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       default:
         throw UnimplementedError('');
     }
+  }
+
+  @protected
+  RsMulticastDiscovered sse_decode_rs_multicast_discovered(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_ip = sse_decode_String(deserializer);
+    var var_message = sse_decode_multicast_message_v_2(deserializer);
+    return RsMulticastDiscovered(ip: var_ip, message: var_message);
   }
 
   @protected
@@ -3829,6 +4214,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       default:
         throw UnimplementedError('');
     }
+  }
+
+  @protected
+  SecurityContext sse_decode_security_context(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_privateKey = sse_decode_String(deserializer);
+    var var_publicKey = sse_decode_String(deserializer);
+    var var_certificate = sse_decode_String(deserializer);
+    var var_certificateHash = sse_decode_String(deserializer);
+    return SecurityContext(privateKey: var_privateKey, publicKey: var_publicKey, certificate: var_certificate, certificateHash: var_certificateHash);
   }
 
   @protected
@@ -4046,6 +4441,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRsMulticast(RsMulticast self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize((self as RsMulticastImpl).frbInternalSseEncode(move: true), serializer);
+  }
+
+  @protected
   void sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDart2RustStreamSink(
     Dart2RustStreamSink self,
     SseSerializer serializer,
@@ -4124,6 +4525,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRsHttpServer(RsHttpServer self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize((self as RsHttpServerImpl).frbInternalSseEncode(move: false), serializer);
+  }
+
+  @protected
+  void sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRsMulticast(RsMulticast self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize((self as RsMulticastImpl).frbInternalSseEncode(move: false), serializer);
   }
 
   @protected
@@ -4238,6 +4645,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRsMulticast(RsMulticast self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize((self as RsMulticastImpl).frbInternalSseEncode(move: null), serializer);
+  }
+
+  @protected
   void sse_encode_Set_String_None(Set<String> self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_list_String(self.toList(), serializer);
@@ -4281,6 +4694,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       self.setupAndSerialize(
         codec: SseCodec(
           decodeSuccessData: sse_decode_list_prim_u_8_strict,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+      ),
+      serializer,
+    );
+  }
+
+  @protected
+  void sse_encode_StreamSink_rs_hash_file_event_Sse(RustStreamSink<RsHashFileEvent> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(
+      self.setupAndSerialize(
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_rs_hash_file_event,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+      ),
+      serializer,
+    );
+  }
+
+  @protected
+  void sse_encode_StreamSink_rs_multicast_discovered_Sse(RustStreamSink<RsMulticastDiscovered> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(
+      self.setupAndSerialize(
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_rs_multicast_discovered,
           decodeErrorData: sse_decode_AnyhowException,
         ),
       ),
@@ -4623,6 +5064,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_multicast_message_v_2(MulticastMessageV2 self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.alias, serializer);
+    sse_encode_String(self.version, serializer);
+    sse_encode_opt_String(self.deviceModel, serializer);
+    sse_encode_opt_box_autoadd_device_type(self.deviceType, serializer);
+    sse_encode_String(self.fingerprint, serializer);
+    sse_encode_u_16(self.port, serializer);
+    sse_encode_protocol_type_v_2(self.protocol, serializer);
+    sse_encode_bool(self.download, serializer);
+  }
+
+  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -4874,6 +5328,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_rs_hash_file_event(RsHashFileEvent self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case RsHashFileEvent_Progress(bytes: final bytes):
+        sse_encode_i_32(0, serializer);
+        sse_encode_u_64(bytes, serializer);
+      case RsHashFileEvent_Done(hash: final hash):
+        sse_encode_i_32(1, serializer);
+        sse_encode_String(hash, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_rs_http_client_error(RsHttpClientError self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     switch (self) {
@@ -4894,6 +5361,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_i_32(4, serializer);
         sse_encode_String(field0, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_rs_multicast_discovered(RsMulticastDiscovered self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.ip, serializer);
+    sse_encode_multicast_message_v_2(self.message, serializer);
   }
 
   @protected
@@ -4986,6 +5460,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_i_32(7, serializer);
         sse_encode_String(field0, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_security_context(SecurityContext self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.privateKey, serializer);
+    sse_encode_String(self.publicKey, serializer);
+    sse_encode_String(self.certificate, serializer);
+    sse_encode_String(self.certificateHash, serializer);
   }
 
   @protected
@@ -5229,6 +5712,7 @@ class RsHttpClientImpl extends RustOpaque implements RsHttpClient {
     required PrepareUploadRequestDto payload,
     String? publicKey,
     String? pin,
+    required RsCancellationToken cancelToken,
   }) => RustLib.instance.api.crateApiHttpRsHttpClientPrepareUpload(
     that: this,
     protocol: protocol,
@@ -5237,6 +5721,7 @@ class RsHttpClientImpl extends RustOpaque implements RsHttpClient {
     payload: payload,
     publicKey: publicKey,
     pin: pin,
+    cancelToken: cancelToken,
   );
 
   Future<ResultWithPublicKeyRegisterResponseDto> register({
@@ -5294,11 +5779,27 @@ class RsHttpServerImpl extends RustOpaque implements RsHttpServer {
   /// transfer on the receiving side.
   ///
   /// Uploads that are already in progress still run to completion, but new
-  /// upload requests are rejected and a new session can be created.
+  /// upload requests fail and a new session can be created.
   /// No [RsServerEvent::SessionEnd] is emitted: the application initiated
   /// the cancellation itself.
   Future<void> cancelSession({required String sessionId}) =>
       RustLib.instance.api.crateApiServerRsHttpServerCancelSession(that: this, sessionId: sessionId);
+
+  /// Fails the pending [RsServerEvent::WebFileDownload] event, e.g. because
+  /// the application failed to resolve a source for the file content.
+  ///
+  /// The download request fails with an error response.
+  /// Does nothing if the download was already answered.
+  Future<void> failFileDownload({required String sessionId, required String fileId}) =>
+      RustLib.instance.api.crateApiServerRsHttpServerFailFileDownload(that: this, sessionId: sessionId, fileId: fileId);
+
+  /// Fails the pending [RsServerEvent::FileUpload] event, e.g. because
+  /// the application failed to prepare a save target for the file.
+  ///
+  /// The upload request fails with an error response and the file is marked
+  /// as failed. Does nothing if the upload was already answered.
+  Future<void> failFileUpload({required String sessionId, required String fileId}) =>
+      RustLib.instance.api.crateApiServerRsHttpServerFailFileUpload(that: this, sessionId: sessionId, fileId: fileId);
 
   /// Emits server events until the server is stopped.
   /// Can only be listened to once.
@@ -5308,22 +5809,6 @@ class RsHttpServerImpl extends RustOpaque implements RsHttpServer {
   Stream<RsServerEvent> listen() => RustLib.instance.api.crateApiServerRsHttpServerListen(
     that: this,
   );
-
-  /// Rejects the pending [RsServerEvent::WebFileDownload] event, e.g. because
-  /// the application failed to resolve a source for the file content.
-  ///
-  /// The download request fails with an error response.
-  /// Does nothing if the download was already answered.
-  Future<void> rejectFileDownload({required String sessionId, required String fileId}) =>
-      RustLib.instance.api.crateApiServerRsHttpServerRejectFileDownload(that: this, sessionId: sessionId, fileId: fileId);
-
-  /// Rejects the pending [RsServerEvent::FileUpload] event, e.g. because
-  /// the application failed to prepare a save target for the file.
-  ///
-  /// The upload request fails with an error response and the file is marked
-  /// as failed. Does nothing if the upload was already answered.
-  Future<void> rejectFileUpload({required String sessionId, required String fileId}) =>
-      RustLib.instance.api.crateApiServerRsHttpServerRejectFileUpload(that: this, sessionId: sessionId, fileId: fileId);
 
   /// Answers the pending [RsServerEvent::WebFileDownload] event with the source
   /// the file content should be read from (either a path or a file descriptor).
@@ -5369,6 +5854,43 @@ class RsHttpServerImpl extends RustOpaque implements RsHttpServer {
   /// Stops the server.
   /// Returns after the listeners are closed, so the port can be bound again.
   Future<void> stop() => RustLib.instance.api.crateApiServerRsHttpServerStop(
+    that: this,
+  );
+}
+
+@sealed
+class RsMulticastImpl extends RustOpaque implements RsMulticast {
+  // Not to be used by end users
+  RsMulticastImpl.frbInternalDcoDecode(List<dynamic> wire) : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  RsMulticastImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative) : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount: RustLib.instance.api.rust_arc_increment_strong_count_RsMulticast,
+    rustArcDecrementStrongCount: RustLib.instance.api.rust_arc_decrement_strong_count_RsMulticast,
+    rustArcDecrementStrongCountPtr: RustLib.instance.api.rust_arc_decrement_strong_count_RsMulticastPtr,
+  );
+
+  /// Announces this device to the network, which makes every other LocalSend
+  /// device on it register with this device over HTTP.
+  ///
+  /// Returns once the whole announcement burst has been sent, which takes a
+  /// few seconds, or immediately once discovery has been stopped.
+  Future<void> announce() => RustLib.instance.api.crateApiMulticastRsMulticastAnnounce(
+    that: this,
+  );
+
+  /// Emits a [RsMulticastDiscovered] for every announcement received from
+  /// another device until discovery is stopped.
+  /// Can only be listened to once.
+  Stream<RsMulticastDiscovered> listen() => RustLib.instance.api.crateApiMulticastRsMulticastListen(
+    that: this,
+  );
+
+  /// Stops discovery, which also ends the [RsMulticast::listen] stream.
+  /// Returns after all sockets are closed, so the port can be bound again.
+  Future<void> stop() => RustLib.instance.api.crateApiMulticastRsMulticastStop(
     that: this,
   );
 }

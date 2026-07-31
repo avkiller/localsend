@@ -21,6 +21,10 @@ impl LsHttpClientV2 {
     /// # Arguments
     /// * `private_key` - PEM-encoded private key for client certificate
     /// * `cert` - PEM-encoded certificate for client authentication
+    /// * `expected_fingerprint` - SHA-256 fingerprint (uppercase hex) the peer
+    ///   certificate must have. Enforced during the TLS handshake, so nothing
+    ///   is sent to a mismatching peer. [`None`] accepts any valid certificate
+    ///   and must only be used for discovery.
     /// * `timeout` - Optional total request timeout (e.g. for discovery scans)
     ///
     /// # Returns
@@ -28,10 +32,11 @@ impl LsHttpClientV2 {
     pub fn try_new(
         private_key: &str,
         cert: &str,
+        expected_fingerprint: Option<String>,
         timeout: Option<std::time::Duration>,
     ) -> Result<Self, ClientError> {
         Ok(Self {
-            client: super::create_reqwest_client(private_key, cert, timeout)?,
+            client: super::create_reqwest_client(private_key, cert, expected_fingerprint, timeout)?,
         })
     }
 
@@ -114,6 +119,10 @@ impl LsHttpClientV2 {
     /// * `public_key` - Expected public key for verification (HTTPS only)
     /// * `payload` - Upload request with device info and file metadata
     /// * `pin` - Optional PIN if required by receiver
+    /// * `cancel` - Cancellation token; cancelling it aborts the request with
+    ///   [`ClientError::Cancelled`]. Aborting closes the connection, which
+    ///   tells the receiver that the sender is no longer waiting for a
+    ///   decision.
     ///
     /// # Returns
     /// Session ID and accepted file tokens, or an error.
@@ -134,6 +143,7 @@ impl LsHttpClientV2 {
         public_key: Option<String>,
         payload: PrepareUploadRequestDtoV2,
         pin: Option<&str>,
+        cancel: CancellationToken,
     ) -> Result<PrepareUploadResultV2, ClientError> {
         let pin_params: &[(&'static str, &str)] = match &pin {
             Some(pin) => &[("pin", pin)],
@@ -149,13 +159,17 @@ impl LsHttpClientV2 {
         }
         .to_string();
 
-        let res = self
+        let send = self
             .client
             .post(&url)
             .header("Content-Type", "application/json")
             .body(serde_json::to_string(&payload)?)
-            .send()
-            .await?;
+            .send();
+
+        let res = tokio::select! {
+            res = send => res?,
+            _ = cancel.cancelled() => return Err(ClientError::Cancelled),
+        };
 
         if protocol == ProtocolType::Https {
             super::verify_cert_from_res(&res, public_key)?;

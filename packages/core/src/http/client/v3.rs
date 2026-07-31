@@ -24,10 +24,11 @@ impl LsHttpClientV3 {
     pub fn try_new(
         private_key: &str,
         cert: &str,
+        expected_fingerprint: Option<String>,
         timeout: Option<std::time::Duration>,
     ) -> Result<Self, ClientError> {
         Ok(Self {
-            client: super::create_reqwest_client(private_key, cert, timeout)?,
+            client: super::create_reqwest_client(private_key, cert, expected_fingerprint, timeout)?,
             received_nonce_map: Arc::new(Mutex::new(LruCache::new(
                 NonZeroUsize::new(200).unwrap(),
             ))),
@@ -132,6 +133,9 @@ impl LsHttpClientV3 {
         Ok(ResultWithPublicKey { public_key, body })
     }
 
+    /// `cancel` is a cancellation token; cancelling it aborts the request with
+    /// [`ClientError::Cancelled`]. Aborting closes the connection, which tells
+    /// the receiver that the sender is no longer waiting for a decision.
     pub async fn prepare_upload(
         &self,
         protocol: ProtocolType,
@@ -139,8 +143,9 @@ impl LsHttpClientV3 {
         port: u16,
         public_key: Option<String>,
         payload: http::dto::PrepareUploadRequestDto,
+        cancel: CancellationToken,
     ) -> Result<http::dto::PrepareUploadResult, ClientError> {
-        let res = self
+        let send = self
             .client
             .post(
                 TargetUrl {
@@ -154,8 +159,12 @@ impl LsHttpClientV3 {
                 .to_string(),
             )
             .body(serde_json::to_string(&payload)?)
-            .send()
-            .await?;
+            .send();
+
+        let res = tokio::select! {
+            res = send => res?,
+            _ = cancel.cancelled() => return Err(ClientError::Cancelled),
+        };
 
         if protocol == ProtocolType::Https {
             super::verify_cert_from_res(&res, public_key)?;

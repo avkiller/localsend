@@ -220,6 +220,7 @@
     "saveToGalleryOff": "Вимкнено автоматично, оскільки є папки."
   },
   "sendPage": {
+    "calculatingChecksum": "Обчислення контрольної суми ({curr} / {n})",
     "waiting": "Очікування відповіді…",
     "rejected": "Отримувач відхилив запит.",
     "tooManyAttempts": "@:web.tooManyAttempts",
