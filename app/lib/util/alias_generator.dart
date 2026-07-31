@@ -15,11 +15,10 @@ String generateRandomAlias() {
   );
 }
 
-/// 生成“设备名称 + IP 后两位”
 String generateDeviceAlias() {
   String deviceName = 'Device';
 
-  // 1. 获取设备名称
+  // 1. 获取设备主机名/名称
   try {
     final host = Platform.localHostname;
     if (host.isNotEmpty && host.toLowerCase() != 'localhost') {
@@ -27,31 +26,26 @@ String generateDeviceAlias() {
     }
   } catch (_) {}
 
-  // 2. 安全读取局域网 IP 后两位
-  String ipSuffix = '';
+  // 2. 提取 IP 后两位
+  String ipSuffix = _getSystemIpSuffix();
+
+  return '$deviceName$ipSuffix';
+}
+
+/// 安全提取 IP 后两位（兼容所有 Flutter 编译平台）
+String _getSystemIpSuffix() {
   try {
-    final interfaces = NetworkInterface.listSync(
-      type: InternetAddressType.IPv4,
-      includeLoopback: false,
-    );
-
-    for (var interface in interfaces) {
-      final name = interface.name.toLowerCase();
-      // 过滤常见虚拟网卡与 VPN
-      if (name.contains('tun') || name.contains('vbox') || name.contains('docker') || name.contains('ppp')) {
-        continue;
-      }
-
-      for (var addr in interface.addresses) {
+    // 尝试直接通过 Platform.localHostname 解析 IP
+    final entries = InternetAddress.lookupSync(Platform.localHostname);
+    for (var addr in entries) {
+      if (addr.type == InternetAddressType.IPv4 && !addr.isLoopback) {
         final parts = addr.address.split('.');
         if (parts.length == 4) {
-          ipSuffix = ' .${parts[2]}.${parts[3]}';
-          break;
+          return ' .${parts[2]}.${parts[3]}';
         }
       }
-      if (ipSuffix.isNotEmpty) break;
     }
   } catch (_) {}
 
-  return '$deviceName$ipSuffix';
+  return '';
 }
