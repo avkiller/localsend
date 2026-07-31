@@ -33,5 +33,5 @@ Future<String> generateDeviceAlias() async {
     }
   } catch (_) {}
   return 'UnknownDevice-${_generateRandomSuffix(3)}';
-}
+
 }
