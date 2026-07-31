@@ -15,10 +15,19 @@ String generateRandomAlias() {
   );
 }
 
+/// 随机字符集（可以根据需要调整，例如大写字母 + 数字）
+const _chars = 'AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz0123456789';
+
+/// 生成随机包含 2 个字符的后缀（例如 "x9" 或 "aB"）
+String _generateRandomSuffix([int length = 2]) {
+  final random = Random();
+  return List.generate(length, (_) => _chars[random.nextInt(_chars.length)]).join();
+}
+
+/// 生成默认设备名称：设备主机名 + 随机 2 位字符串
 String generateDeviceAlias() {
   String deviceName = 'Device';
 
-  // 1. 获取设备主机名/名称
   try {
     final host = Platform.localHostname;
     if (host.isNotEmpty && host.toLowerCase() != 'localhost') {
@@ -26,26 +35,8 @@ String generateDeviceAlias() {
     }
   } catch (_) {}
 
-  // 2. 提取 IP 后两位
-  String ipSuffix = _getSystemIpSuffix();
+  // 拼接随机 2 位字符串，例如: "Pixel-6-a8" 或 "Jack-PC-k2"
+  final suffix = _generateRandomSuffix(2);
 
-  return '$deviceName$ipSuffix';
-}
-
-/// 安全提取 IP 后两位（兼容所有 Flutter 编译平台）
-String _getSystemIpSuffix() {
-  try {
-    // 尝试直接通过 Platform.localHostname 解析 IP
-    final entries = InternetAddress.lookupSync(Platform.localHostname);
-    for (var addr in entries) {
-      if (addr.type == InternetAddressType.IPv4 && !addr.isLoopback) {
-        final parts = addr.address.split('.');
-        if (parts.length == 4) {
-          return ' .${parts[2]}.${parts[3]}';
-        }
-      }
-    }
-  } catch (_) {}
-
-  return '';
+  return '$deviceName-$suffix';
 }
