@@ -1,9 +1,7 @@
 import 'dart:math';
+import 'dart:io';
 
 import 'package:localsend_app/gen/strings.g.dart';
-import 'package:localsend_app/provider/device_info_provider.dart';
-import 'package:localsend_app/provider/local_ip_provider.dart';
-import 'package:refena_flutter/refena_flutter.dart';
 
 String generateRandomAlias() {
   final random = Random();
@@ -17,24 +15,43 @@ String generateRandomAlias() {
   );
 }
 
-/// 根据当前设备信息和 IP 自动拼接名称：设备名称 + IP 后两位
-String generateDeviceAlias(Ref ref) {
-  final rawInfo = ref.read(deviceInfoProvider);
-  final networkInfo = ref.read(localIpProvider);
+/// 生成“设备名称 + IP 后两位”
+String generateDeviceAlias() {
+  String deviceName = 'Device';
 
-  // 获取设备型号，若不存在则回退到 Device
-  final deviceName = rawInfo.deviceModel ?? 'Device';
-
-  // 提取 IP 后两位
-  String ipSuffix = '';
-  final ip = networkInfo.localIps.firstOrNull;
-  if (ip != null) {
-    final parts = ip.split('.');
-    if (parts.length >= 2) {
-      // 获取最后两个 IP 段，例如 192.168.1.105 -> 1.105
-      ipSuffix = ' ${parts[parts.length - 2]}.${parts.last}';
+  // 1. 获取设备名称
+  try {
+    final host = Platform.localHostname;
+    if (host.isNotEmpty && host.toLowerCase() != 'localhost') {
+      deviceName = host;
     }
-  }
+  } catch (_) {}
+
+  // 2. 安全读取局域网 IP 后两位
+  String ipSuffix = '';
+  try {
+    final interfaces = NetworkInterface.listSync(
+      type: InternetAddressType.IPv4,
+      includeLoopback: false,
+    );
+
+    for (var interface in interfaces) {
+      final name = interface.name.toLowerCase();
+      // 过滤常见虚拟网卡与 VPN
+      if (name.contains('tun') || name.contains('vbox') || name.contains('docker') || name.contains('ppp')) {
+        continue;
+      }
+
+      for (var addr in interface.addresses) {
+        final parts = addr.address.split('.');
+        if (parts.length == 4) {
+          ipSuffix = ' .${parts[2]}.${parts[3]}';
+          break;
+        }
+      }
+      if (ipSuffix.isNotEmpty) break;
+    }
+  } catch (_) {}
 
   return '$deviceName$ipSuffix';
 }
