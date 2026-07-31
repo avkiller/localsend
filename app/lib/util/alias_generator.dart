@@ -32,4 +32,6 @@ Future<String> generateDeviceAlias() async {
       return '$model-${_generateRandomSuffix(3)}'; // 输出如: "Xiaomi 2201122C-a2" 或 "Google Pixel 6-x9"
     }
   } catch (_) {}
+  return 'UnknownDevice-${_generateRandomSuffix(3)}';
+}
 }
