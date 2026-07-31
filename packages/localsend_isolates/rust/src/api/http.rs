@@ -7,7 +7,7 @@ pub use localsend::http::dto::{
     PrepareUploadRequestDto, PrepareUploadResponseDto, PrepareUploadResult, ProtocolType,
     RegisterDto, RegisterResponseDto,
 };
-use localsend::reqwest;
+///use localsend::reqwest;
 
 pub struct RsHttpClient {
     inner: localsend::http::client::LsHttpClient,
