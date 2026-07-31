@@ -162,7 +162,7 @@ class PersistenceService {
     }
 
     if (prefs.getString(_aliasKey) == null) {
-      await prefs.setString(_aliasKey, generateDeviceAlias());
+      await prefs.setString(_aliasKey, await generateDeviceAlias());
     }
 
     if (prefs.getString(_securityContext) == null) {
