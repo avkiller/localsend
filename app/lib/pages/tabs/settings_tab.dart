@@ -491,6 +491,7 @@ class SettingsTab extends StatelessWidget {
                 ),
               ],
             ),
+            if (false)
             _SettingsSection(
               title: t.settingsTab.other.title,
               padding: const EdgeInsets.only(bottom: 0),
