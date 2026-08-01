@@ -2,7 +2,7 @@ name: Build LocalSend CLI for  avkiller
 
 on:
   workflow_dispatch: # 支持在 GitHub Actions 页面手动触发构建
-       inputs:
+    inputs:
       version:
         type: string
         description: 'release tags(Default: v1.17.1)'
@@ -10,8 +10,7 @@ on:
         default: 'v1.17.1'
 env:
   RUST_VERSION: "1.84.1"
-  
-  permissions:
+permissions:
       contents: write
 
 jobs:
