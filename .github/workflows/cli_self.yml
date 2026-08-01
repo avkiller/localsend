@@ -9,7 +9,7 @@ on:
         required: true
         default: 'v1.17.1'
 env:
-  RUST_VERSION: "1.84.1"
+  RUST_VERSION: "1.84.5"
 permissions:
       contents: write
 
