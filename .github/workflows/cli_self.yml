@@ -78,7 +78,7 @@ jobs:
       - name: Prepare Artifact
         run: |
           mkdir -p dist
-          cp cli/target/${{ matrix.target }}/release/${{ matrix.binary_name }} dist/${{ matrix.asset_name }}
+          cp target/${{ matrix.target }}/release/${{ matrix.binary_name }} dist/${{ matrix.asset_name }}
         shell: bash
 
       # 4. 升级 upload-artifact 到 v4 (彻底避免旧 Node 运行时警告)
