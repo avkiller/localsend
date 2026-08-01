@@ -1,0 +1,101 @@
+name: Build LocalSend CLI for  avkiller
+
+on:
+  workflow_dispatch: # 支持在 GitHub Actions 页面手动触发构建
+       inputs:
+      version:
+        type: string
+        description: 'release tags(Default: v1.17.1)'
+        required: true
+        default: 'v1.17.1'
+env:
+  RUST_VERSION: "1.84.1"
+  
+  permissions:
+      contents: write
+
+jobs:
+  build-cli:
+    name: Build CLI for ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Windows x86_64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary_name: localsend.exe
+            asset_name: localsend-cli-windows-x86_64.exe
+            
+
+          # Linux x86_64
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            binary_name: localsend
+            asset_name: localsend-cli-linux-x86_64
+
+          # Linux ARM64 (例如 树莓派 / ARM 服务器)
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-musl
+            binary_name: localsend
+            asset_name: localsend-cli-linux-arm64
+            use_cross: true
+
+    steps:
+      # 1. 升级 checkout 到 v6
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. 安装 Rust 环境 (使用 master 分支自动对齐最新平台 API)
+      - name: Install Rust (Modern Toolchain)
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          target: x86_64-pc-windows-msvc
+
+      # 3. 升级 Rust Cache 到 v2 智能缓存
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "cli -> target"
+
+      # 如果需要交叉编译（如在 Linux Runner 上构建 ARM64 版本），安装 cross
+      - name: Install cross
+        if: matrix.use_cross == true
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
+      # 执行编译
+      - name: Build Binary
+        run: |
+          if [ "${{ matrix.use_cross }}" = "true" ]; then
+            cross build --manifest-path cli/Cargo.toml --release --target ${{ matrix.target }}
+          else
+            cargo build --manifest-path cli/Cargo.toml --release --target ${{ matrix.target }}
+          fi
+        shell: bash
+
+      # 重命名并整理生成的二进制产物
+      - name: Prepare Artifact
+        run: |
+          mkdir -p dist
+          cp cli/target/${{ matrix.target }}/release/${{ matrix.binary_name }} dist/${{ matrix.asset_name }}
+        shell: bash
+
+      # 4. 升级 upload-artifact 到 v4 (彻底避免旧 Node 运行时警告)
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ matrix.asset_name }}
+          path: dist/${{ matrix.asset_name }}
+
+      # 5. 升级 softprops/action-gh-release 到 v2
+      - name: Release Binary to GitHub
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v3
+        with:
+          files: dist/${{ matrix.asset_name }}
+          tag_name: ${{ env.TAG_NAME }}
+          draft: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
