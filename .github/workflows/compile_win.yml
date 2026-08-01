@@ -175,6 +175,7 @@ jobs:
           files: |
             app/LocalSend.zip
           draft: true
+          target_commitish: ${{ github.sha }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN}}
 
