@@ -53,6 +53,13 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
           target: ${{ matrix.target }}
           
+      # 仅在 Linux runner 且编译 musl 时安装系统级依赖
+      - name: Install musl-tools (Linux only)
+        if: runner.os == 'Linux' && contains(matrix.target, 'musl')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+          
 
       # 3. 升级 Rust Cache 到 v2 智能缓存
       - name: Rust Cache
