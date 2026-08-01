@@ -24,20 +24,20 @@ jobs:
           # Windows x86_64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            binary_name: localsend.exe
+            binary_name: localsend-cli.exe
             asset_name: localsend-cli-windows-x86_64.exe
             
 
           # Linux x86_64
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
-            binary_name: localsend
+            binary_name: localsend-cli
             asset_name: localsend-cli-linux-x86_64
 
           # Linux ARM64 (例如 树莓派 / ARM 服务器)
           - os: ubuntu-latest
             target: aarch64-unknown-linux-musl
-            binary_name: localsend
+            binary_name: localsend-cli
             asset_name: localsend-cli-linux-arm64
             use_cross: true
 
@@ -51,7 +51,8 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: ${{ env.RUST_VERSION }}
-          target: x86_64-pc-windows-msvc
+          target: ${{ matrix.target }}
+          
 
       # 3. 升级 Rust Cache 到 v2 智能缓存
       - name: Rust Cache
@@ -78,8 +79,7 @@ jobs:
       - name: Prepare Artifact
         run: |
           mkdir -p dist
-          SRC_FILE=$(find target cli/target -maxdepth 4 -type f \( -name "${{ matrix.binary_name }}" -o -name "${{ matrix.binary_name }}.exe" \) 2>/dev/null | grep -i "release" | head -n 1)
-
+          SRC_FILE=$(find target cli/target -type f -name "*localsend*" 2>/dev/null | grep -i "release" | grep -v "\.d" | head -n 1 | sed 's/\\/\//g')
           if [ -n "$SRC_FILE" ]; then
             echo "Found binary at: $SRC_FILE"
             cp "$SRC_FILE" "dist/${{ matrix.asset_name }}"
