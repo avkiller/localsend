@@ -39,7 +39,7 @@ jobs:
             target: aarch64-unknown-linux-musl
             binary_name: localsend-cli
             asset_name: localsend-cli-linux-arm64
-            use_cross: false
+            use_cross: true
 
     steps:
       # 1. 升级 checkout 到 v6
@@ -76,7 +76,7 @@ jobs:
       - name: Build Binary
         run: |
           if [ "${{ matrix.use_cross }}" = "true" ]; then
-            cross build --manifest-path cli/Cargo.toml --release --target ${{ matrix.target }}
+            cross build --manifest-path cli/Cargo.toml --release --target ${{ matrix.target }} --message-format=json
           else
             cargo build --manifest-path cli/Cargo.toml --release --target ${{ matrix.target }} --message-format=json
           fi
@@ -103,7 +103,6 @@ jobs:
 
       # 5. 升级 softprops/action-gh-release 到 v2
       - name: Release Binary to GitHub
-        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v3
         with:
           files: dist/${{ matrix.asset_name }}
