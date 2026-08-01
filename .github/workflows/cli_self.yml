@@ -10,6 +10,7 @@ on:
         default: 'v1.17.1'
 env:
   RUST_VERSION: "1.93.1"
+  TAG_NAME: ${{ inputs.version }}
 permissions:
       contents: write
 
