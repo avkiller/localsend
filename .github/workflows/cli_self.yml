@@ -70,7 +70,7 @@ jobs:
           if [ "${{ matrix.use_cross }}" = "true" ]; then
             cross build --manifest-path cli/Cargo.toml --release --target ${{ matrix.target }}
           else
-            cargo build --manifest-path cli/Cargo.toml --release --target ${{ matrix.target }}
+            cargo build --manifest-path cli/Cargo.toml --release --target ${{ matrix.target }} --message-format=json
           fi
         shell: bash
 
@@ -78,7 +78,17 @@ jobs:
       - name: Prepare Artifact
         run: |
           mkdir -p dist
-          cp target/${{ matrix.target }}/release/${{ matrix.binary_name }} dist/${{ matrix.asset_name }}
+          SRC_FILE=$(find target cli/target -maxdepth 4 -type f \( -name "${{ matrix.binary_name }}" -o -name "${{ matrix.binary_name }}.exe" \) 2>/dev/null | grep -i "release" | head -n 1)
+
+          if [ -n "$SRC_FILE" ]; then
+            echo "Found binary at: $SRC_FILE"
+            cp "$SRC_FILE" "dist/${{ matrix.asset_name }}"
+          else
+            echo "Error: Cannot find binary for ${{ matrix.binary_name }} under target directory!"
+            # 列出 target 下现有的文件，方便排查路径
+            find target cli/target -type f 2>/dev/null || true
+            exit 1
+          fi
         shell: bash
 
       # 4. 升级 upload-artifact 到 v4 (彻底避免旧 Node 运行时警告)
