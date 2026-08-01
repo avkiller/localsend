@@ -39,7 +39,7 @@ jobs:
             target: aarch64-unknown-linux-musl
             binary_name: localsend-cli
             asset_name: localsend-cli-linux-arm64
-            use_cross: true
+            use_cross: false
 
     steps:
       # 1. 升级 checkout 到 v6
@@ -87,27 +87,11 @@ jobs:
         run: |
           mkdir -p dist
 
-          # 1. 在相对路径下定位真正的二进制文件（优先匹配 .exe 或无后缀的可执行二进制）
-          # 2. 排除 .d, .pdb, .rlib, .rmeta, .dll 等非主要可执行产物
-          # 3. 将 Windows 驱动器盘符和反斜杠转换为 MSYS/Bash 兼容路径 (例如 D:\a -> /d/a)
-          SRC_FILE=$(find target cli/target -type f \( -name "*.exe" -o -perm -111 \) 2>/dev/null \
-            | grep -i "release" \
-            | grep -i "localsend" \
-            | grep -v -E "\.(d|pdb|rlib|rmeta|dll|pyd)$" \
-            | head -n 1 \
-            | sed -e 's/\\/\//g' -e 's/^\([a-zA-Z]\):/\/\1/' -e 's/^\/\([A-Z]\)/\/\L\1/')
-
-          echo "Detected raw path: $SRC_FILE"
-
-          if [ -n "$SRC_FILE" ] && [ -f "$SRC_FILE" ]; then
-            echo "Successfully verified file exists at: $SRC_FILE"
-            cp "$SRC_FILE" "dist/${{ matrix.asset_name }}"
-            echo "Successfully copied to dist/${{ matrix.asset_name }}"
+          # 简单直接：根据操作系统类型直接 cp 确定位置的文件
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            cp "cli/target/${{ matrix.target }}/release/localsend-cli.exe" "dist/${{ matrix.asset_name }}"
           else
-            echo "Error: Cannot find valid binary under target directories!"
-            echo "=== Diagnostic File List under Target ==="
-            find target cli/target -type f 2>/dev/null || true
-            exit 1
+            cp "cli/target/${{ matrix.target }}/release/localsend-cli" "dist/${{ matrix.asset_name }}"
           fi
         shell: bash
       # 4. 升级 upload-artifact 到 v4 (彻底避免旧 Node 运行时警告)
