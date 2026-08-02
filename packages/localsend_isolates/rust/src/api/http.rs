@@ -8,6 +8,8 @@ pub use localsend::http::dto::{
     RegisterDto, RegisterResponseDto,
 };
 use localsend::model::discovery::ProtocolType;
+///目前会导致编译失败先处理掉
+#[allow(unused_imports)]
 use localsend::reqwest;
 
 pub struct RsHttpClient {
