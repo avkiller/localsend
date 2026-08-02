@@ -4,13 +4,13 @@ use bytes::Bytes;
 use futures_util::StreamExt;
 use localsend::crypto::hash::sha256_hex;
 use localsend::http::client::{ClientError, LsHttpClientV2};
-use localsend::http::dto::ProtocolType;
-use localsend::http::dto_v2::{PrepareUploadRequestDtoV2, ProtocolTypeV2, RegisterDtoV2};
+use localsend::http::dto_v2::{PrepareUploadRequestDtoV2, RegisterDtoV2};
 use localsend::http::server::common::save::FileUploadTarget;
 use localsend::http::server::v2::{PrepareUploadDecisionV2, ServerEventV2, SessionEndReasonV2};
 use localsend::http::server::{start_with_port, ServerConfigV2};
 use localsend::http::state::ClientInfo;
-use localsend::model::transfer::FileDto;
+use localsend::model::discovery::ProtocolType;
+use localsend::model::transfer::{FileDto, FileMetadata};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU16, AtomicU64, Ordering};
@@ -178,7 +178,7 @@ fn sender_info() -> RegisterDtoV2 {
         device_type: None,
         fingerprint: "sender-fingerprint".to_string(),
         port: 53317,
-        protocol: ProtocolTypeV2::Http,
+        protocol: ProtocolType::Http,
         download: false,
     }
 }
@@ -368,6 +368,61 @@ async fn test_full_upload_flow() {
     )
     .await;
     assert_status(result, 403);
+}
+
+/// The sender-provided metadata timestamps are applied to the written file.
+#[tokio::test]
+async fn test_upload_applies_file_timestamps() {
+    let save_dir = std::env::temp_dir().join(format!("localsend-test-{}", uuid::Uuid::new_v4()));
+    tokio::fs::create_dir_all(&save_dir).await.unwrap();
+
+    let server = start_test_server(None, true, Some(save_dir.clone())).await;
+    let client = LsHttpClientV2::try_new_without_cert().unwrap();
+
+    let bytes = b"hello".to_vec();
+    let mut file = file_dto("file-a", "a.bin", bytes.len() as u64);
+    file.metadata = Some(FileMetadata {
+        modified: Some("2020-08-15T10:20:30.500Z".to_string()),
+        accessed: None,
+    });
+
+    let response = client
+        .prepare_upload(
+            ProtocolType::Http,
+            "127.0.0.1",
+            server.port,
+            None,
+            prepare_upload_request(&[file]),
+            None,
+            CancellationToken::new(),
+        )
+        .await
+        .unwrap()
+        .response
+        .unwrap();
+
+    upload_bytes(
+        &client,
+        server.port,
+        &response.session_id,
+        "file-a",
+        &response.files["file-a"],
+        &bytes,
+    )
+    .await
+    .unwrap();
+
+    let modified = tokio::fs::metadata(save_dir.join("file-a"))
+        .await
+        .unwrap()
+        .modified()
+        .unwrap();
+    assert_eq!(
+        modified,
+        std::time::SystemTime::UNIX_EPOCH + Duration::from_millis(1_597_486_830_500),
+    );
+
+    tokio::fs::remove_dir_all(&save_dir).await.unwrap();
 }
 
 #[tokio::test]

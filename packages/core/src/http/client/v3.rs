@@ -1,7 +1,7 @@
 use super::{ClientError, ResponseExt, ResultWithPublicKey};
 use crate::http;
 use crate::http::client::url::{ApiVersion, TargetUrl};
-use crate::http::dto::ProtocolType;
+use crate::model::discovery::ProtocolType;
 use crate::{crypto, util};
 use lru::LruCache;
 use reqwest::{Response, StatusCode};
@@ -123,14 +123,21 @@ impl LsHttpClientV3 {
             .send()
             .await?;
 
-        let public_key = match protocol {
-            ProtocolType::Https => Some(super::verify_cert_from_res(&res, None)?),
-            _ => None,
+        let (public_key, cert_fingerprint) = match protocol {
+            ProtocolType::Https => (
+                Some(super::verify_cert_from_res(&res, None)?),
+                Some(super::cert_fingerprint_from_res(&res)?),
+            ),
+            _ => (None, None),
         };
 
         let body = res.json::<http::dto::RegisterResponseDto>().await?;
 
-        Ok(ResultWithPublicKey { public_key, body })
+        Ok(ResultWithPublicKey {
+            public_key,
+            cert_fingerprint,
+            body,
+        })
     }
 
     /// `cancel` is a cancellation token; cancelling it aborts the request with

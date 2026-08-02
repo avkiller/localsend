@@ -91,6 +91,9 @@ abstract class RsHttpServer implements RustOpaqueInterface {
   ///
   /// The progress (fraction of [file_size]) is emitted on [sink]
   /// while the file is being received.
+  ///
+  /// Timestamps provided in the sender's file metadata are applied to the
+  /// written file by the server.
   Stream<double> respondFileUpload({required String sessionId, required String fileId, String? path, int? fileDescriptor, required BigInt fileSize});
 
   /// Answers the pending [RsServerEvent::WebPrepareDownload] event.
@@ -109,11 +112,6 @@ abstract class RsHttpServer implements RustOpaqueInterface {
   Future<void> stop();
 }
 
-enum ProtocolTypeV2 {
-  http,
-  https,
-}
-
 class RegisterDtoV2 {
   final String alias;
   final String version;
@@ -121,7 +119,7 @@ class RegisterDtoV2 {
   final DeviceType? deviceType;
   final String fingerprint;
   final int port;
-  final ProtocolTypeV2 protocol;
+  final ProtocolType protocol;
   final bool download;
 
   const RegisterDtoV2({
