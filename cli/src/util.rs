@@ -1,6 +1,6 @@
 use crossterm::terminal::{Clear, ClearType};
 use crossterm::{cursor, execute};
-use std::net::Ipv4Addr;
+use localsend::util::filename;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
@@ -29,6 +29,17 @@ pub fn leave_alternate_screen() {
         cursor::MoveTo(0, 0),
         crossterm::terminal::LeaveAlternateScreen,
         cursor::Show
+    );
+}
+
+/// Clears the alternate screen without leaving it, for handing it over from
+/// one modal to the next — leaving and re-entering would flash the main
+/// screen in between.
+pub fn clear_alternate_screen() {
+    let _ = execute!(
+        std::io::stdout(),
+        Clear(ClearType::All),
+        cursor::MoveTo(0, 0)
     );
 }
 
@@ -78,13 +89,11 @@ pub fn progress_bar(fraction: f64, width: usize) -> String {
 /// A path in `dir` for `file_name` that does not exist yet, appending
 /// ` (1)`, ` (2)`, … before the extension on collisions.
 ///
-/// Only the final path component of `file_name` is used, so a malicious
-/// sender cannot escape the target directory.
+/// `file_name` comes from the sender and is untrusted: it is collapsed to its
+/// final path component and sanitized for the local filesystem, so it can
+/// neither escape the target directory nor carry illegal characters.
 pub fn unique_path(dir: &Path, file_name: &str) -> PathBuf {
-    let name = Path::new(file_name)
-        .file_name()
-        .map(|name| name.to_string_lossy().into_owned())
-        .unwrap_or_else(|| "unnamed".to_string());
+    let name = filename::sanitize_path(file_name, filename::Rules::current());
 
     let candidate = dir.join(&name);
     if !candidate.exists() {
@@ -99,25 +108,6 @@ pub fn unique_path(dir: &Path, file_name: &str) -> PathBuf {
         .map(|i| dir.join(format!("{stem} ({i}){extension}")))
         .find(|candidate| !candidate.exists())
         .unwrap()
-}
-
-/// The IPv4 addresses of all non-loopback interfaces, i.e. the addresses this
-/// device can be reached at. Empty when the interfaces cannot be enumerated.
-pub fn local_ipv4_addresses() -> Vec<Ipv4Addr> {
-    let Ok(interfaces) = if_addrs::get_if_addrs() else {
-        return Vec::new();
-    };
-    let mut addresses: Vec<Ipv4Addr> = interfaces
-        .into_iter()
-        .filter(|interface| !interface.is_loopback())
-        .filter_map(|interface| match interface.ip() {
-            std::net::IpAddr::V4(address) => Some(address),
-            std::net::IpAddr::V6(_) => None,
-        })
-        .collect();
-    addresses.sort();
-    addresses.dedup();
-    addresses
 }
 
 /// Estimates the transfer speed from cumulative byte counts, smoothed with an

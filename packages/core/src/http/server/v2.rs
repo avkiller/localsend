@@ -1,18 +1,19 @@
 use crate::http::dto_v2::{
     InfoResponseDtoV2, PrepareUploadRequestDtoV2, PrepareUploadResponseDtoV2, RegisterDtoV2,
-    RegisterResponseDtoV2, PROTOCOL_VERSION_V2,
+    RegisterResponseDtoV2,
 };
 use crate::http::server::common::collect_to_json::CollectToJson;
 use crate::http::server::common::error::AppError;
 use crate::http::server::common::pin::check_pin;
 use crate::http::server::common::query::parse_query;
 use crate::http::server::common::response::{empty_body, BoxedBody, JsonResponse};
-use crate::http::server::common::save::{FileUploadTarget, SaveResult};
+use crate::http::server::common::save::{FileTimestamps, FileUploadTarget, SaveResult};
 use crate::http::server::common::session::{
     FileStatusV2, PendingSessionV2, SessionFileV2, SessionStateV2, UploadSessionV2,
 };
 use crate::http::server::PeerIp;
 use crate::http::server::{common, AppState, RequestClientInfo, V2State};
+use crate::model::discovery::PROTOCOL_VERSION_V2;
 use crate::model::transfer::FileDto;
 use hyper::body::Incoming;
 use hyper::{Request, Response, StatusCode};
@@ -385,6 +386,13 @@ pub(crate) async fn upload(
 
     let file_size = file_dto.size;
     let expected_sha256 = file_dto.sha256.clone();
+    let timestamps = match &file_dto.metadata {
+        Some(metadata) => FileTimestamps {
+            modified: metadata.modified_time(),
+            accessed: metadata.accessed_time(),
+        },
+        None => FileTimestamps::default(),
+    };
     let (target_tx, target_rx) = oneshot::channel::<FileUploadTarget>();
 
     let event = ServerEventV2::FileUpload {
@@ -403,8 +411,14 @@ pub(crate) async fn upload(
         return Err(AppError::Status(StatusCode::INTERNAL_SERVER_ERROR));
     };
 
-    let result =
-        common::save::save_req_to_target(req, target, file_size, expected_sha256.as_deref()).await;
+    let result = common::save::save_req_to_target(
+        req,
+        target,
+        file_size,
+        expected_sha256.as_deref(),
+        timestamps,
+    )
+    .await;
 
     upload_guard.finish(result).await;
 

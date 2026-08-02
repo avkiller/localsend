@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:gal/gal.dart';
-import 'package:legalize/legalize.dart';
+import 'package:localsend_isolates/rust/api/filename.dart' as rust_filename;
 import 'package:localsend_isolates/util/android_channel.dart' as android_channel;
 import 'package:localsend_isolates/util/content_uri_helper.dart';
 import 'package:localsend_isolates/util/file_path_helper.dart';
@@ -115,29 +115,6 @@ Future<FileSaveTarget> reopenFileSaveTarget(FileSaveTarget target) async {
   );
 }
 
-/// Applies the file timestamps after the file has been written to a plain path.
-Future<void> applyFileTimestamps({
-  required FileSaveTarget target,
-  DateTime? lastModified,
-  DateTime? lastAccessed,
-}) async {
-  final path = target.path;
-  if (path == null) {
-    return;
-  }
-  final file = File(path);
-  if (lastModified != null) {
-    try {
-      await file.setLastModified(lastModified);
-    } catch (_) {}
-  }
-  if (lastAccessed != null) {
-    try {
-      await file.setLastAccessed(lastAccessed);
-    } catch (_) {}
-  }
-}
-
 /// Moves a file that has been written to the cache directory into the
 /// OS gallery (Photos/Videos).
 ///
@@ -206,7 +183,7 @@ Future<(String, String?, String)> digestFilePathAndPrepareDirectory({
     return (destinationUri, documentUri, p.basename(fileName));
   }
 
-  final actualFileName = legalizeFilename(p.basename(fileName), os: Platform.operatingSystem);
+  final actualFileName = rust_filename.sanitizeFileName(name: p.basename(fileName));
   final fileNameParts = p.split(fileName);
   final dir = p.joinAll([parentDirectory, ...fileNameParts.take(fileNameParts.length - 1)]);
 
@@ -215,13 +192,13 @@ Future<(String, String?, String)> digestFilePathAndPrepareDirectory({
     if (!p.isWithin(parentDirectory, dir)) {
       throw 'Path traversal detected';
     }
-
-    try {
-      Directory(dir).createSync(recursive: true);
-    } catch (e) {
-      _logger.warning('Could not create directory', e);
-    }
   }
+
+  // The destination directory may not exist anymore, e.g. because it was deleted
+  // or is on a drive that is no longer mounted. This also creates the
+  // sub-directories of a folder transfer. Errors are propagated so that the
+  // caller fails the upload instead of writing to a path that cannot be opened.
+  Directory(dir).createSync(recursive: true);
 
   String destinationPath;
   int counter = 1;

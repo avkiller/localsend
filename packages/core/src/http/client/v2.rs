@@ -1,10 +1,10 @@
 use super::{ClientError, ResponseExt, ResultWithPublicKey};
 use crate::http::client::url::{ApiVersion, TargetUrl};
-use crate::http::dto::ProtocolType;
 use crate::http::dto_v2::{
     InfoResponseDtoV2, PrepareDownloadResponseDtoV2, PrepareUploadRequestDtoV2,
     PrepareUploadResponseDtoV2, PrepareUploadResultV2, RegisterDtoV2, RegisterResponseDtoV2,
 };
+use crate::model::discovery::ProtocolType;
 use futures_util::StreamExt;
 use reqwest::{Response, StatusCode};
 use tokio::io::AsyncWriteExt;
@@ -96,14 +96,21 @@ impl LsHttpClientV2 {
             return res.into_error().await;
         }
 
-        let public_key = match protocol {
-            ProtocolType::Https => Some(super::verify_cert_from_res(&res, None)?),
-            _ => None,
+        let (public_key, cert_fingerprint) = match protocol {
+            ProtocolType::Https => (
+                Some(super::verify_cert_from_res(&res, None)?),
+                Some(super::cert_fingerprint_from_res(&res)?),
+            ),
+            _ => (None, None),
         };
 
         let body = res.json::<RegisterResponseDtoV2>().await?;
 
-        Ok(ResultWithPublicKey { public_key, body })
+        Ok(ResultWithPublicKey {
+            public_key,
+            cert_fingerprint,
+            body,
+        })
     }
 
     /// Prepares a file upload session with the receiver.

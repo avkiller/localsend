@@ -13,7 +13,6 @@ import 'package:localsend_app/provider/device_info_provider.dart';
 import 'package:localsend_app/provider/favorites_provider.dart';
 import 'package:localsend_app/provider/http_provider.dart';
 import 'package:localsend_app/provider/logging/discovery_logs_provider.dart';
-import 'package:localsend_app/provider/network/nearby_devices_provider.dart';
 import 'package:localsend_app/provider/network/send_provider.dart';
 import 'package:localsend_app/provider/network/server/server_provider.dart';
 import 'package:localsend_app/provider/network/server/server_utils.dart';
@@ -59,7 +58,9 @@ class ReceiveController {
       return;
     }
 
-    await server.ref.redux(nearbyDevicesProvider).dispatchAsync(RegisterDeviceAction(event.info.toDevice(event.ip, HttpDiscovery(ip: event.ip))));
+    // Feed the device into the discovery store; it comes back (and is
+    // registered) via the [StartDiscoveryListener] stream.
+    server.ref.redux(parentIsolateProvider).dispatch(IsolateDiscoveryAddDeviceAction(device: event.info.toDevice(event.ip, withChannel: true)));
     server.ref.notifier(discoveryLoggerProvider).addLog('[DISCOVER/TCP] Received "/register" HTTP request: ${event.info.alias} (${event.ip})');
   }
 
@@ -95,7 +96,7 @@ class ReceiveController {
         session: ReceiveSessionState(
           sessionId: sessionId,
           status: SessionStatus.waiting,
-          sender: event.info.toDevice(event.ip, null).copyWith(fingerprint: senderFingerprint),
+          sender: event.info.toDevice(event.ip, withChannel: false).copyWith(fingerprint: senderFingerprint),
           senderAlias: server.ref.read(favoritesProvider).firstWhereOrNull((e) => e.fingerprint == senderFingerprint)?.alias ?? event.info.alias,
           files: {
             for (final file in files.values)
