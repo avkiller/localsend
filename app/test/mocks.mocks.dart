@@ -300,6 +300,28 @@ class MockPersistenceService extends _i1.Mock
           as _i4.Future<void>);
 
   @override
+  bool getReceiveViaLinkAutoAccept() =>
+      (super.noSuchMethod(
+            Invocation.method(#getReceiveViaLinkAutoAccept, []),
+            returnValue: false,
+            returnValueForMissingStub: false,
+          )
+          as bool);
+
+  @override
+  _i4.Future<void> setReceiveViaLinkAutoAccept(
+    bool? receiveViaLinkAutoAccept,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#setReceiveViaLinkAutoAccept, [
+              receiveViaLinkAutoAccept,
+            ]),
+            returnValue: _i4.Future<void>.value(),
+            returnValueForMissingStub: _i4.Future<void>.value(),
+          )
+          as _i4.Future<void>);
+
+  @override
   String getMulticastGroup() =>
       (super.noSuchMethod(
             Invocation.method(#getMulticastGroup, []),
@@ -570,6 +592,15 @@ class MockPersistenceService extends _i1.Mock
   _i4.Future<void> setDeviceModel(String? deviceModel) =>
       (super.noSuchMethod(
             Invocation.method(#setDeviceModel, [deviceModel]),
+            returnValue: _i4.Future<void>.value(),
+            returnValueForMissingStub: _i4.Future<void>.value(),
+          )
+          as _i4.Future<void>);
+
+  @override
+  _i4.Future<void> setWhatsNew(String? version) =>
+      (super.noSuchMethod(
+            Invocation.method(#setWhatsNew, [version]),
             returnValue: _i4.Future<void>.value(),
             returnValueForMissingStub: _i4.Future<void>.value(),
           )
