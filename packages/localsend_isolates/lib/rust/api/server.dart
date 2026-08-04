@@ -34,6 +34,7 @@ Future<RsHttpServer> startServer({
   DeviceType? deviceType,
   required String fingerprint,
   String? pin,
+  required bool verifyChecksums,
   WebParams? web,
   String? showToken,
 }) => RustLib.instance.api.crateApiServerStartServer(
@@ -45,6 +46,7 @@ Future<RsHttpServer> startServer({
   deviceType: deviceType,
   fingerprint: fingerprint,
   pin: pin,
+  verifyChecksums: verifyChecksums,
   web: web,
   showToken: showToken,
 );
@@ -95,7 +97,10 @@ abstract class RsHttpServer implements RustOpaqueInterface {
   /// and waits until the file has been received completely.
   ///
   /// The progress (fraction of [file_size]) is emitted on [sink]
-  /// while the file is being received.
+  /// while the file is being received. Failures are emitted on [sink] as
+  /// well: flutter_rust_bridge discards the returned `Result` of functions
+  /// taking a [StreamSink], so a returned error would become an uncaught
+  /// async error killing the calling isolate.
   ///
   /// Timestamps provided in the sender's file metadata are applied to the
   /// written file by the server.

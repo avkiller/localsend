@@ -11,12 +11,12 @@ import 'package:localsend_app/pages/progress_page.dart';
 import 'package:localsend_app/pages/receive_page.dart';
 import 'package:localsend_app/provider/device_info_provider.dart';
 import 'package:localsend_app/provider/favorites_provider.dart';
+import 'package:localsend_app/provider/file_transfer_provider.dart';
 import 'package:localsend_app/provider/http_provider.dart';
 import 'package:localsend_app/provider/logging/discovery_logs_provider.dart';
 import 'package:localsend_app/provider/network/send_provider.dart';
 import 'package:localsend_app/provider/network/server/server_provider.dart';
 import 'package:localsend_app/provider/network/server/server_utils.dart';
-import 'package:localsend_app/provider/progress_provider.dart';
 import 'package:localsend_app/provider/receive_history_provider.dart';
 import 'package:localsend_app/provider/security_provider.dart';
 import 'package:localsend_app/provider/selection/selected_receiving_files_provider.dart';
@@ -102,7 +102,6 @@ class ReceiveController {
             for (final file in files.values)
               file.id: ReceivingFile(
                 file: file,
-                status: FileStatus.queue,
                 token: null,
                 desiredName: null,
                 path: null,
@@ -120,6 +119,13 @@ class ReceiveController {
       ),
     );
 
+    server.ref
+        .notifier(fileTransferProvider)
+        .setStatuses(
+          sessionId: sessionId,
+          statuses: {for (final file in files.values) file.id: FileStatus.queue},
+        );
+
     bool quickSave = settings.quickSave && server.getState().session?.message == null;
     final quickSaveFromFavorites = settings.quickSaveFromFavorites && server.getState().session?.message == null;
     if (quickSaveFromFavorites) {
@@ -134,11 +140,7 @@ class ReceiveController {
     }
 
     if (quickSave) {
-      // accept all files
-      await acceptFileRequest({
-        for (final f in files.values) f.id: f.fileName,
-      });
-
+      // Push before accepting: the permission request in [acceptFileRequest] may block for a while.
       // ignore: use_build_context_synchronously, unawaited_futures
       Routerino.context.pushImmediately(
         () => ProgressPage(
@@ -147,6 +149,11 @@ class ReceiveController {
           sessionId: sessionId,
         ),
       );
+
+      // accept all files
+      await acceptFileRequest({
+        for (final f in files.values) f.id: f.fileName,
+      });
       return;
     }
 
@@ -175,7 +182,9 @@ class ReceiveController {
     }
 
     final receiveProvider = ViewProvider((ref) {
-      final session = ref.watch(serverProvider.select((state) => state?.session));
+      // No select: comparing the selected session runs the dart_mappable deep equality
+      // over the whole files map on every state change.
+      final session = ref.watch(serverProvider)?.session;
       return ReceivePageVm(
         status: session?.status,
         sender: session?.sender ?? Device.empty,
@@ -195,17 +204,20 @@ class ReceiveController {
           }
 
           final selectedFiles = ref.read(selectedReceivingFilesProvider);
-          await ref.notifier(serverProvider).acceptFileRequest(selectedFiles);
 
-          // ignore: use_build_context_synchronously
-          await Routerino.context.pushAndRemoveUntilImmediately(
-            removeUntil: ReceivePage,
-            builder: () => ProgressPage(
-              showAppBar: false,
-              closeSessionOnClose: true,
-              sessionId: sessionId,
+          // Push before accepting: the permission request in [acceptFileRequest] may block for a while.
+          unawaited(
+            Routerino.context.pushAndRemoveUntilImmediately(
+              removeUntil: ReceivePage,
+              builder: () => ProgressPage(
+                showAppBar: false,
+                closeSessionOnClose: true,
+                sessionId: sessionId,
+              ),
             ),
           );
+
+          await ref.notifier(serverProvider).acceptFileRequest(selectedFiles);
         },
         onDecline: () {
           ref.notifier(serverProvider).declineFileRequest();
@@ -243,21 +255,17 @@ class ReceiveController {
     }
 
     // begin of actual file transfer
-    server.setState(
-      (oldState) => oldState?.copyWith(
-        session: receiveState.copyWith(
-          files: {...receiveState.files}
-            ..update(
-              fileId,
-              (_) => receivingFile.copyWith(
-                status: FileStatus.sending,
-              ),
-            ),
-          startTime: receiveState.startTime ?? DateTime.now().millisecondsSinceEpoch,
-          status: SessionStatus.sending, // in case it was finishedWithErrors and user retries a failed file
+    server.ref.notifier(fileTransferProvider).setStatus(sessionId: event.sessionId, fileId: fileId, status: FileStatus.sending);
+    if (receiveState.startTime == null || receiveState.status != SessionStatus.sending) {
+      server.setState(
+        (oldState) => oldState?.copyWith(
+          session: receiveState.copyWith(
+            startTime: receiveState.startTime ?? DateTime.now().millisecondsSinceEpoch,
+            status: SessionStatus.sending, // in case it was finishedWithErrors and user retries a failed file
+          ),
         ),
-      ),
-    );
+      );
+    }
   }
 
   /// The receive progress of a file reported by the server isolate.
@@ -268,7 +276,7 @@ class ReceiveController {
     }
 
     server.ref
-        .notifier(progressProvider)
+        .notifier(fileTransferProvider)
         .setProgress(
           sessionId: event.sessionId,
           fileId: event.fileId,
@@ -286,7 +294,7 @@ class ReceiveController {
       return;
     }
 
-    final progress = server.ref.read(progressProvider);
+    final transferNotifier = server.ref.read(fileTransferProvider);
     int currentBytes = 0;
     int totalBytes = 0;
     for (final receivingFile in session.files.values) {
@@ -296,7 +304,7 @@ class ReceiveController {
       }
       final size = receivingFile.file.size;
       totalBytes += size;
-      currentBytes += (progress.getProgress(sessionId: session.sessionId, fileId: receivingFile.file.id) * size).round();
+      currentBytes += (transferNotifier.getProgress(sessionId: session.sessionId, fileId: receivingFile.file.id) * size).round();
     }
 
     TransferNotification.update(
@@ -328,11 +336,11 @@ class ReceiveController {
     final error = event.error;
 
     if (error == null) {
+      server.ref.notifier(fileTransferProvider).setStatus(sessionId: event.sessionId, fileId: fileId, status: FileStatus.finished);
       server.setState(
         (oldState) => oldState?.copyWith(
           session: oldState.session?.fileFinished(
             fileId: fileId,
-            status: FileStatus.finished,
             path: filePath,
             savedToGallery: event.savedToGallery,
             errorMessage: null,
@@ -357,11 +365,11 @@ class ReceiveController {
             ),
           );
     } else {
+      server.ref.notifier(fileTransferProvider).setStatus(sessionId: event.sessionId, fileId: fileId, status: FileStatus.failed);
       server.setState(
         (oldState) => oldState?.copyWith(
           session: oldState.session?.fileFinished(
             fileId: fileId,
-            status: FileStatus.failed,
             path: null,
             savedToGallery: false,
             errorMessage: error,
@@ -371,7 +379,7 @@ class ReceiveController {
     }
 
     server.ref
-        .notifier(progressProvider)
+        .notifier(fileTransferProvider)
         .setProgress(
           sessionId: receiveState.sessionId,
           fileId: fileId,
@@ -385,11 +393,12 @@ class ReceiveController {
 
     _updateForegroundServiceProgress(session);
 
-    if (allowedStates.contains(session.status) && session.files.values.map((e) => e.status).isFinishedOrError) {
+    final statuses = server.ref.read(fileTransferProvider).getStatuses(session.sessionId);
+    if (allowedStates.contains(session.status) && statuses.isFinishedOrError) {
       // The transfer is over, the process no longer needs to be kept alive for it.
       TransferNotification.stop(session.sessionId);
 
-      final hasError = session.files.values.any((f) => f.status == FileStatus.failed);
+      final hasError = statuses.any((status) => status == FileStatus.failed);
       server.setState(
         (oldState) => oldState?.copyWith(
           session: oldState.session!.copyWith(
@@ -539,7 +548,6 @@ class ReceiveController {
                   entry.file.id,
                   ReceivingFile(
                     file: entry.file,
-                    status: desiredName != null ? FileStatus.queue : FileStatus.skipped,
                     token: null,
                     desiredName: desiredName,
                     path: null,
@@ -554,18 +562,23 @@ class ReceiveController {
       },
     );
 
-    if (checkPlatform([TargetPlatform.android, TargetPlatform.iOS])) {
-      if (checkPlatform([TargetPlatform.android]) && !session.destinationDirectory.startsWith('/storage/emulated/0/Download')) {
-        // Android requires more permission to save files outside of the Download directory
-        try {
-          final result = await Permission.storage.request();
-          _logger.info('storage permission: $result');
-        } catch (e) {
-          _logger.warning('Could not request storage permission', e);
-        }
-      }
+    server.ref
+        .notifier(fileTransferProvider)
+        .setStatuses(
+          sessionId: session.sessionId,
+          statuses: {
+            for (final file in session.files.values) file.file.id: fileNameMap.containsKey(file.file.id) ? FileStatus.queue : FileStatus.skipped,
+          },
+        );
+
+    // The storage permission only exists below Android 13 (scoped storage): newer versions
+    // auto-deny the request, but the round trip through the system permission activity
+    // still blocks the UI noticeably.
+    final androidSdkInt = server.ref.read(deviceInfoProvider).androidSdkInt;
+    if (checkPlatform([TargetPlatform.android]) && androidSdkInt != null && androidSdkInt < 33) {
       try {
-        await Permission.storage.request();
+        final result = await Permission.storage.request();
+        _logger.info('storage permission: $result');
       } catch (e) {
         _logger.warning('Could not request storage permission', e);
       }
@@ -678,7 +691,7 @@ class ReceiveController {
         session: null,
       ),
     );
-    server.ref.notifier(progressProvider).removeSession(sessionId);
+    server.ref.notifier(fileTransferProvider).removeSession(sessionId);
   }
 }
 
@@ -709,7 +722,6 @@ void _cancelBySender(ServerUtils server) {
 extension on ReceiveSessionState {
   ReceiveSessionState fileFinished({
     required String fileId,
-    required FileStatus status,
     required String? path,
     required bool savedToGallery,
     required String? errorMessage,
@@ -719,7 +731,6 @@ extension on ReceiveSessionState {
         ..update(
           fileId,
           (file) => file.copyWith(
-            status: status,
             path: path,
             savedToGallery: savedToGallery,
             errorMessage: errorMessage,
