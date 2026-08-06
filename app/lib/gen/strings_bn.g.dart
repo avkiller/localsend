@@ -40,8 +40,6 @@ class TranslationsBn extends Translations with BaseTranslations<AppLocale, Trans
 
   // Translations
   @override
-  String get locale => 'বাংলা';
-  @override
   String get appName => 'লোকালসেন্ড';
   @override
   late final _Translations$general$bn general = _Translations$general$bn._(_root);
@@ -1079,8 +1077,6 @@ class _Translations$progressPage$remainingTime$bn extends Translations$progressP
 
   // Translations
   @override
-  String seconds({required Object n, required Object ss}) => '${n}:${ss}';
-  @override
   String minutes({required Object n, required Object ss}) => '${n}:${ss}';
 
   /// ঘন্টার জন্য 'h' এবং মিনিটের জন্য 'm' ব্যবহার করুন
@@ -1127,10 +1123,6 @@ class _Translations$dialogs$addressInput$bn extends Translations$dialogs$address
   // Translations
   @override
   String get title => 'এড্রেস লিখুন';
-  @override
-  String get hashtag => 'হ্যাশট্যাগ';
-  @override
-  String get ip => 'আইপি অ্যাড্রেস';
   @override
   String get recentlyUsed => 'সম্প্রতি ব্যবহৃত: ';
 }

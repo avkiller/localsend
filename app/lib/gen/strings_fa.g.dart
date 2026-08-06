@@ -40,8 +40,6 @@ class TranslationsFa extends Translations with BaseTranslations<AppLocale, Trans
 
   // Translations
   @override
-  String get locale => 'فارسی';
-  @override
   String get appName => 'لوکال‌سِند';
   @override
   late final _Translations$general$fa general = _Translations$general$fa._(_root);
@@ -1080,8 +1078,6 @@ class _Translations$progressPage$remainingTime$fa extends Translations$progressP
 
   // Translations
   @override
-  String seconds({required Object n, required Object ss}) => '${n}:${ss}';
-  @override
   String minutes({required Object n, required Object ss}) => '${n}:${ss}';
 
   /// از «س» به عنوان مخفف ساعت و از «د» برای دقیقه استفاده کنید
@@ -1128,10 +1124,6 @@ class _Translations$dialogs$addressInput$fa extends Translations$dialogs$address
   // Translations
   @override
   String get title => 'آدرس را وارد کنید';
-  @override
-  String get hashtag => 'هشتگ';
-  @override
-  String get ip => 'آدرس آی‌پی';
   @override
   String get recentlyUsed => 'اخیرا استفاده شده: ';
 }

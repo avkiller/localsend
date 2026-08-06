@@ -40,8 +40,6 @@ class TranslationsPtPt extends Translations with BaseTranslations<AppLocale, Tra
 
   // Translations
   @override
-  String get locale => 'Português (Portugal)';
-  @override
   String get appName => 'LocalSend';
   @override
   late final Translations$general$pt_PT general = Translations$general$pt_PT.internal(_root);
@@ -1090,8 +1088,6 @@ class Translations$progressPage$remainingTime$pt_PT extends Translations$progres
 
   // Translations
   @override
-  String seconds({required Object n, required Object ss}) => '${n}:${ss}';
-  @override
   String minutes({required Object n, required Object ss}) => '${n}:${ss}';
 
   /// Usar 'h' e 'm' para abreviar as palavras horas e minutos
@@ -1138,10 +1134,6 @@ class Translations$dialogs$addressInput$pt_PT extends Translations$dialogs$addre
   // Translations
   @override
   String get title => 'Digite o endereço';
-  @override
-  String get hashtag => 'Hashtag';
-  @override
-  String get ip => 'Endereço IP';
   @override
   String get recentlyUsed => 'Recém ligado: ';
 }

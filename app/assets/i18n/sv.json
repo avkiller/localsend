@@ -1,5 +1,4 @@
 {
-  "locale": "Svenska",
   "appName": "LocalSend",
   "general": {
     "accept": "Acceptera",
@@ -242,7 +241,6 @@
       "speed": "Hastighet: {speed}/s"
     },
     "remainingTime": {
-      "seconds": "{n}:{ss}",
       "minutes": "{n}:{ss}",
       "hours": "{h}h {m}m",
       "days": "{d}d {h}h {m}m",
@@ -373,8 +371,6 @@
     },
     "addressInput": {
       "title": "Ange adress",
-      "hashtag": "Hashtagg",
-      "ip": "IP-adress",
       "recentlyUsed": "Senast använda: "
     },
     "cancelSession": {

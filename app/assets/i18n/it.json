@@ -1,5 +1,4 @@
 {
-  "locale": "Italiano",
   "appName": "LocalSend",
   "general": {
     "accept": "Accetta",
@@ -241,7 +240,6 @@
       "speed": "Velocità: {speed}/s"
     },
     "remainingTime": {
-      "seconds": "{n}:{ss}",
       "minutes": "{n}:{ss}",
       "hours": "{h}h {m}m",
       "days": "{d}d {h}h {m}m",
@@ -302,8 +300,6 @@
     },
     "addressInput": {
       "title": "Inserisci l'indirizzo",
-      "hashtag": "Hashtag",
-      "ip": "Indirizzo IP",
       "recentlyUsed": "Usato di recente: "
     },
     "cancelSession": {

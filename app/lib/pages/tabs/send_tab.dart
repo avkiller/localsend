@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:localsend_app/config/theme.dart';
 import 'package:localsend_app/gen/strings.g.dart';
 import 'package:localsend_app/model/send_mode.dart';
+import 'package:localsend_app/pages/device_details_page.dart';
 import 'package:localsend_app/pages/selected_files_page.dart';
 import 'package:localsend_app/pages/tabs/send_tab_vm.dart';
 import 'package:localsend_app/pages/troubleshoot_page.dart';
@@ -223,7 +224,7 @@ class SendTab extends StatelessWidget {
                           device: device,
                           isFavorite: favoriteEntry != null,
                           nameOverride: favoriteEntry?.alias,
-                          onFavoriteTap: () async => await vm.onToggleFavorite(context, device),
+                          onDetailsTap: () async => await context.push(() => DeviceDetailsPage(device: device)),
                           onTap: () async => await vm.onTapDevice(context, device),
                         ),
                 ),
@@ -553,7 +554,7 @@ class _MultiSendDeviceListTile extends StatelessWidget {
       progress: progress,
       isFavorite: isFavorite,
       nameOverride: nameOverride,
-      onFavoriteTap: device.ip == null ? null : () async => await vm.onToggleFavorite(context, device),
+      onDetailsTap: () async => await context.push(() => DeviceDetailsPage(device: device)),
       onTap: () async => await vm.onTapDeviceMultiSend(context, device),
     );
   }
