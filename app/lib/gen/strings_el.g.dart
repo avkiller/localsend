@@ -40,8 +40,6 @@ class TranslationsEl extends Translations with BaseTranslations<AppLocale, Trans
 
   // Translations
   @override
-  String get locale => 'Ελληνικά';
-  @override
   String get appName => 'LocalSend';
   @override
   late final _Translations$general$el general = _Translations$general$el._(_root);
@@ -1081,8 +1079,6 @@ class _Translations$progressPage$remainingTime$el extends Translations$progressP
 
   // Translations
   @override
-  String seconds({required Object n, required Object ss}) => '${n}:${ss}';
-  @override
   String minutes({required Object n, required Object ss}) => '${n}:${ss}';
 
   /// Χρησιμοποιήστε τη συντομογραφία «ώ» για ώρες και τη συντομογραφία «λ» για λεπτά
@@ -1129,10 +1125,6 @@ class _Translations$dialogs$addressInput$el extends Translations$dialogs$address
   // Translations
   @override
   String get title => 'Εισαγωγή διεύθυνσης';
-  @override
-  String get hashtag => 'Χάσταγκ';
-  @override
-  String get ip => 'Διεύθυνση IP';
   @override
   String get recentlyUsed => 'Χρησιμοποιήθηκε πρόσφατα: ';
 }
