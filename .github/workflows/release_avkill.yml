@@ -35,7 +35,7 @@ jobs:
       - name: Download APK artifact
         uses: dawidd6/action-download-artifact@v21
         with:
-          workflow: compile_apk_self.yml
+          workflow: compile_apk.yml
           workflow_conclusion: success
           name: apk-result
           path: assets/apk/
@@ -59,6 +59,7 @@ jobs:
           name: ${{ inputs.version }}
           draft: true
           overwrite_files: true
+          append_body: true
           files: |
             assets/**/*.apk
             assets/**/*.zip
