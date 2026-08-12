@@ -26,18 +26,18 @@ jobs:
         with:
           workflow: compile_win.yml
           workflow_conclusion: success
-          name: windows-build
+          name: windows-zip-x86-64-result
           path: assets/windows/
           # 如果找不到产物，不要中断流程（可选）
           if_no_artifact_found: false
       
       # 下载 APK 构建产物
       - name: Download APK artifact
-        uses: dawidd6/action-download-artifact@v8
+        uses: dawidd6/action-download-artifact@v21
         with:
           workflow: compile_apk_self.yml
           workflow_conclusion: success
-          name: apk-build
+          name: apk-result
           path: assets/apk/
           if_no_artifact_found: false
       
