@@ -20,32 +20,35 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      # 自动查询并下载 APK 和 Win 的最新成功构建
-      - name: Download Artifacts from both Workflows
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_NO_TLS_VERIFY: "1"
+       # 下载 Windows 构建产物
+      - name: Download Windows artifact
+        uses: dawidd6/action-download-artifact@v8
+        with:
+          workflow: compile_win.yml
+          workflow_conclusion: success
+          name: windows-build
+          path: assets/windows/
+          # 如果找不到产物，不要中断流程（可选）
+          skip_unavailable: true
+      
+      # 下载 APK 构建产物
+      - name: Download APK artifact
+        uses: dawidd6/action-download-artifact@v8
+        with:
+          workflow: compile_apk_self.yml
+          workflow_conclusion: success
+          name: apk-build
+          path: assets/apk/
+          skip_unavailable: true
+      
+      # 查看下载的文件（调试用）
+      - name: List downloaded files
         run: |
-          mkdir -p assets
-
-          echo "🔍 正在寻找最新的 Android 构建产物..."
-          APK_RUN_ID=$(gh run list --workflow "build Android for avkiller" --status success --limit 1 --json databaseId --jq '.[0].databaseId')
-          if [ -n "$APK_RUN_ID" ]; then
-            echo "发现 Android Run ID: $APK_RUN_ID，开始下载..."
-            gh run download $APK_RUN_ID --dir assets/android
-          else
-            echo "⚠️ 未找到成功的 Android 构建记录"
-          fi
-
-          echo "🔍 正在寻找最新的 Windows 构建产物..."
-          WIN_RUN_ID=$(gh run list --workflow "build with windows for avkiller" --status success --limit 1 --json databaseId --jq '.[0].databaseId')
-          if [ -n "$WIN_RUN_ID" ]; then
-            echo "发现 Windows Run ID: $WIN_RUN_ID，开始下载..."
-            gh run download $WIN_RUN_ID --dir assets/windows
-          else
-            echo "⚠️ 未找到成功的 Windows 构建记录"
-          fi
-
+          echo "📦 下载的产物："
+          find assets/ -type f -ls
+          echo ""
+          echo "📊 文件列表："
+          ls -laR assets/ || true
       - name: Check downloaded files
         run: ls -R assets/
 
