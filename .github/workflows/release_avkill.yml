@@ -1,4 +1,4 @@
-name: Release Manager
+name: Release Manager for avkiller
 
 on:
   workflow_dispatch:
