@@ -22,7 +22,7 @@ jobs:
 
        # 下载 Windows 构建产物
       - name: Download Windows artifact
-        uses: dawidd6/action-download-artifact@21
+        uses: dawidd6/action-download-artifact@v21
         with:
           workflow: compile_win.yml
           workflow_conclusion: success
