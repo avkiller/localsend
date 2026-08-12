@@ -13,6 +13,10 @@ env:
   FLUTTER_VERSION: "3.41.9"
   RUST_VERSION: "1.84.1"
 
+permissions:
+      contents: write
+
+
 jobs:
   build:
     runs-on: ubuntu-24.04
@@ -176,7 +180,8 @@ jobs:
           files: |
             app/LocalSend.zip
           draft: true
-          target_commitish: ${{ github.sha }}
+          # target_commitish: ${{ github.sha }}
+          overwrite_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN}}
 

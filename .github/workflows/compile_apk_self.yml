@@ -129,7 +129,8 @@ jobs:
           files: |
             ${{ env.APK_BUILD_DIR }}/app/build/app/outputs/flutter-apk/localsend-v8a-release.apk
           draft: true
-          target_commitish: ${{ github.sha }}
+          # target_commitish: ${{ github.sha }}
+          overwrite_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN}}
 
