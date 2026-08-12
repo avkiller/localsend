@@ -5,9 +5,9 @@ on:
     inputs:
       version:
         type: string
-        description: 'release tags(Default: v1.17.0)'
+        description: 'release tags(Default: v1.18.0)'
         required: true
-        default: 'v1.17.0'
+        default: 'v1.18.0'
 
 env:
   FLUTTER_VERSION: "3.41.9"
@@ -30,7 +30,7 @@ jobs:
 
   build_windows_zip_x86_64:
     needs: build
-    runs-on: windows-2022
+    runs-on: windows-latest
     permissions:
       contents: write
     env:
@@ -50,6 +50,7 @@ jobs:
           channel: "stable"
 
       - name: Install Rust (Modern Toolchain)
+        if: false
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: ${{ env.RUST_VERSION }}
