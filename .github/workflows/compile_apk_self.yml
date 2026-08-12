@@ -5,9 +5,9 @@ on:
     inputs:
       version:
         type: string
-        description: 'release tags(Default: v1.17.0)'
+        description: 'release tags(Default: v1.18.0)'
         required: true
-        default: 'v1.17.0'
+        default: 'v1.18.0'
 
 env:
   FLUTTER_VERSION: "3.41.9"
