@@ -94,12 +94,6 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
 
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          #override: ${{ env.RUST_VERSION }}
-
       - name: Dependencies
         working-directory: ${{ env.APK_BUILD_DIR }}/app
         run: flutter pub get
@@ -113,24 +107,22 @@ jobs:
           flutter build apk --split-per-abi
           cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk build/app/outputs/flutter-apk/localsend-v8a-release.apk 
 
-      # - name: Upload APK
-      #   uses: actions/upload-artifact@v6
-      #   with:
-      #     name: apk-result
-      #     path: |
-      #       ${{ env.APK_BUILD_DIR }}/app/build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
-      #       ${{ env.APK_BUILD_DIR }}/app/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
-      #       ${{ env.APK_BUILD_DIR }}/app/build/app/outputs/flutter-apk/app-x86_64-release.apk
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v3
+      - name: Upload APK
+        uses: actions/upload-artifact@v6
         with:
-          tag_name: ${{ env.TAG_NAME }}
-          files: |
+          name: apk-result
+          path: |
             ${{ env.APK_BUILD_DIR }}/app/build/app/outputs/flutter-apk/localsend-v8a-release.apk
-          draft: true
-          # target_commitish: ${{ github.sha }}
-          overwrite_files: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN}}
+
+      # - name: Create Release
+      #   uses: softprops/action-gh-release@v3
+      #   with:
+      #     tag_name: ${{ env.TAG_NAME }}
+      #     files: |
+      #       ${{ env.APK_BUILD_DIR }}/app/build/app/outputs/flutter-apk/localsend-v8a-release.apk
+      #     draft: true
+      #     target_commitish: ${{ github.sha }}
+      #     overwrite_files: true
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN}}
 

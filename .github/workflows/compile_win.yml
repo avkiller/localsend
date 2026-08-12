@@ -14,7 +14,7 @@ env:
   RUST_VERSION: "1.84.1"
 
 permissions:
-      contents: write
+  contents: write
 
 
 jobs:
@@ -35,8 +35,6 @@ jobs:
   build_windows_zip_x86_64:
     needs: build
     runs-on: windows-latest
-    permissions:
-      contents: write
     env:
           VERSION: ${{ inputs.version }}
           TAG_NAME: ${{ inputs.version }}
@@ -81,25 +79,14 @@ jobs:
             Get-ChildItem -Path app/windows/runner | Select-Object Name
           }
           
-      - name: Fix Rust Build Paths
-        if: false
-        shell: powershell
-        run: |
-           $targetDir = "D:\a\localsend\localsend\app\windows\flutter\ephemeral\rust"
-           if (!(Test-Path $targetDir)) {
-             New-Item -ItemType Directory -Force -Path $targetDir
-           }
-    
-           Copy-Item -Path "packages/localsend_isolates/rust/*" -Destination $targetDir -Recurse -Force
-
       - name: Compile for Windows
         working-directory: app
         env:
-          FLUTTER_ROOT: ${{ env.FLUTTER_ROOT }} 
-          CARGOKIT_TOOL_TEMP_DIR: ${{ github.workspace }}\build\cargokit_temp
+          # FLUTTER_ROOT: ${{ env.FLUTTER_ROOT }} 
+          # CARGOKIT_TOOL_TEMP_DIR: ${{ github.workspace }}\build\cargokit_temp
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path "${{ github.workspace }}\build\cargokit_temp"
+          # New-Item -ItemType Directory -Force -Path "${{ github.workspace }}\build\cargokit_temp"
           flutter build windows -v
 
 
@@ -173,16 +160,18 @@ jobs:
           name: windows-zip-x86-64-result
           path: app/LocalSend.zip
           
-      - name: Create Release
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: ${{ env.TAG_NAME }}
-          files: |
-            app/LocalSend.zip
-          draft: true
-          # target_commitish: ${{ github.sha }}
-          overwrite_files: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN}}
+      # - name: Create Release
+      #   uses: softprops/action-gh-release@v3
+      #   with:
+      #     tag_name: ${{ env.TAG_NAME }}
+      #     files: |
+      #       app/LocalSend.zip
+      #     draft: true
+      #     target_commitish: ${{ github.sha }}
+      #     name: ${{ inputs.version }}
+      #     overwrite_files: true
+      #     append_body: true
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN}}
 
       
