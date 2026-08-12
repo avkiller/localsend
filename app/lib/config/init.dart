@@ -292,8 +292,8 @@ Future<void> postInit(BuildContext context, Ref ref, bool appStart) async {
     // If we received a share intent, then don't clear it, otherwise the shared file will be lost.
     ref.global.dispatchAsync(ClearCacheAction()); // ignore: unawaited_futures
   }
-
-  if (!ref.read(persistenceProvider).isFirstAppStart) {
+  // disable whatNew
+  if (false && !ref.read(persistenceProvider).isFirstAppStart) {
     WhatsNewPage? whatsNew = WhatsNewPage.fromLastVersion(lastVersion: ref.read(persistenceProvider).getWhatsNew());
     if (whatsNew != null) {
       // ignore: unawaited_futures
