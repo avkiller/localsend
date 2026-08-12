@@ -22,14 +22,14 @@ jobs:
 
        # 下载 Windows 构建产物
       - name: Download Windows artifact
-        uses: dawidd6/action-download-artifact@v8
+        uses: dawidd6/action-download-artifact@<REF>
         with:
           workflow: compile_win.yml
           workflow_conclusion: success
           name: windows-build
           path: assets/windows/
           # 如果找不到产物，不要中断流程（可选）
-          skip_unavailable: true
+          if_no_artifact_found: false
       
       # 下载 APK 构建产物
       - name: Download APK artifact
@@ -39,7 +39,7 @@ jobs:
           workflow_conclusion: success
           name: apk-build
           path: assets/apk/
-          skip_unavailable: true
+          if_no_artifact_found: false
       
       # 查看下载的文件（调试用）
       - name: List downloaded files
