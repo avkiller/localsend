@@ -98,7 +98,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-          override: ${{ env.RUST_VERSION }}
+          #override: ${{ env.RUST_VERSION }}
 
       - name: Dependencies
         working-directory: ${{ env.APK_BUILD_DIR }}/app

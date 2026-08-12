@@ -1,4 +1,14 @@
-## 1.18.0 (2026-08-09)
+## 1.18.1 (2026-08-11)
+
+Android+iOS only hotfix update.
+
+- fix: revert button icon sizes to 24
+- fix: when sending a message that is accepted immediately, a ghost device list tile appears
+- fix(mobile): when sending a link message, the "Open" button overflows
+- fix(android): add missing ACCESS_LOCAL_NETWORK permission that is required for Android 17+
+- i18n: add Belarusian (@pavel-miniutka), Irish (@aindriu80)
+
+## 1.18.0 (2026-08-10)
 
 - feat(cli): initial CLI release
 - feat: receive via link
@@ -26,6 +36,7 @@
 - fix: text message content size calculation (@ew-sirenko)
 - fix: save DNG files to image gallery (@ShlomoCode)
 - fix(ios, android): prevent transfer error by saving unsupported media formats to folder instead of gallery (@ShlomoCode)
+- fix(android): share to LocalSend sometimes doesn't work
 - fix(android): preserve location metadata when sharing media (@ShlomoCode)
 - fix(macos): prevent Dock icon from briefly appearing during autostart when "Start hidden" is enabled (@ShlomoCode)
 - fix(macos): Dock icon drag-and-drop and Share Extension working again (@ShlomoCode)

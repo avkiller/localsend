@@ -29,6 +29,7 @@ import 'package:localsend_app/provider/window_dimensions_provider.dart';
 import 'package:localsend_app/util/i18n.dart';
 import 'package:localsend_app/util/native/autostart_helper.dart';
 import 'package:localsend_app/util/native/cache_helper.dart';
+import 'package:localsend_app/util/native/channel/android_channel.dart';
 import 'package:localsend_app/util/native/context_menu_helper.dart';
 import 'package:localsend_app/util/native/cross_file_converters.dart';
 import 'package:localsend_app/util/native/device_info_helper.dart';
@@ -38,6 +39,7 @@ import 'package:localsend_app/util/native/tray_helper.dart';
 import 'package:localsend_app/util/notification_strings.dart';
 import 'package:localsend_app/util/ui/dynamic_colors.dart';
 import 'package:localsend_app/util/ui/snackbar.dart';
+import 'package:localsend_app/widget/dialogs/local_network_dialog.dart';
 import 'package:localsend_isolates/isolate.dart';
 import 'package:localsend_isolates/model/dto/file_dto.dart';
 import 'package:localsend_isolates/model/dto/multicast_dto.dart';
@@ -190,6 +192,16 @@ Future<void> postInit(BuildContext context, Ref ref, bool appStart) async {
     } catch (e) {
       _logger.warning('Setting high refresh rate failed', e);
     }
+
+    // Android 17+ blocks multicast discovery and LAN connections until this permission is granted,
+    // so ask before the server and discovery start.
+    final localNetworkGranted = await requestLocalNetworkPermissionAndroid();
+    if (!localNetworkGranted) {
+      _logger.warning('Local network permission denied. Discovery and transfers may not work.');
+      if (context.mounted) {
+        await context.pushBottomSheet(() => const LocalNetworkDialog());
+      }
+    }
   }
 
   try {
@@ -267,6 +279,12 @@ Future<void> postInit(BuildContext context, Ref ref, bool appStart) async {
         ),
       );
     });
+
+    if (checkPlatform([TargetPlatform.android])) {
+      // Both messages above travel through the same messenger in order, so the stream is
+      // guaranteed to be attached natively before MainActivity replays held-back intents.
+      await flushPendingShareIntentsAndroid();
+    }
   }
 
   if (appStart && !hasInitialShare && (checkPlatformWithGallery() || checkPlatformCanReceiveShareIntent())) {

@@ -60,6 +60,10 @@ class TranslationsZhTw extends Translations with BaseTranslations<AppLocale, Tra
   @override
   late final Translations$selectedFilesPage$zh_TW selectedFilesPage = Translations$selectedFilesPage$zh_TW.internal(_root);
   @override
+  late final Translations$deviceDetailsPage$zh_TW deviceDetailsPage = Translations$deviceDetailsPage$zh_TW.internal(_root);
+  @override
+  late final Translations$verifyPage$zh_TW verifyPage = Translations$verifyPage$zh_TW.internal(_root);
+  @override
   late final Translations$receivePage$zh_TW receivePage = Translations$receivePage$zh_TW.internal(_root);
   @override
   late final Translations$receiveOptionsPage$zh_TW receiveOptionsPage = Translations$receiveOptionsPage$zh_TW.internal(_root);
@@ -70,11 +74,15 @@ class TranslationsZhTw extends Translations with BaseTranslations<AppLocale, Tra
   @override
   late final Translations$webSharePage$zh_TW webSharePage = Translations$webSharePage$zh_TW.internal(_root);
   @override
+  late final Translations$webReceivePage$zh_TW webReceivePage = Translations$webReceivePage$zh_TW.internal(_root);
+  @override
   late final Translations$aboutPage$zh_TW aboutPage = Translations$aboutPage$zh_TW.internal(_root);
   @override
   late final Translations$donationPage$zh_TW donationPage = Translations$donationPage$zh_TW.internal(_root);
   @override
   late final Translations$changelogPage$zh_TW changelogPage = Translations$changelogPage$zh_TW.internal(_root);
+  @override
+  late final Translations$whatsNewPage$zh_TW whatsNewPage = Translations$whatsNewPage$zh_TW.internal(_root);
   @override
   late final Translations$dialogs$zh_TW dialogs = Translations$dialogs$zh_TW.internal(_root);
   @override
@@ -85,8 +93,6 @@ class TranslationsZhTw extends Translations with BaseTranslations<AppLocale, Tra
   late final Translations$web$zh_TW web = Translations$web$zh_TW.internal(_root);
   @override
   late final Translations$assetPicker$zh_TW assetPicker = Translations$assetPicker$zh_TW.internal(_root);
-  @override
-  late final Translations$whatsNewPage$zh_TW whatsNewPage = Translations$whatsNewPage$zh_TW.internal(_root);
 }
 
 // Path: general
@@ -187,6 +193,8 @@ class Translations$receiveTab$zh_TW extends Translations$receiveTab$en {
   late final Translations$receiveTab$infoBox$zh_TW infoBox = Translations$receiveTab$infoBox$zh_TW.internal(_root);
   @override
   late final Translations$receiveTab$quickSave$zh_TW quickSave = Translations$receiveTab$quickSave$zh_TW.internal(_root);
+  @override
+  String get link => '透過連結接收';
 }
 
 // Path: sendTab
@@ -219,7 +227,7 @@ class Translations$sendTab$zh_TW extends Translations$sendTab$en {
   @override
   String get sendModeHelp => '說明';
   @override
-  String get help => '請確保所需目標的處於相同的 Wi‑Fi 網路。';
+  String get help => '請確認目標裝置也已連線至相同的 Wi‑Fi 網路。';
   @override
   String get placeItems => '列出要分享的項目。';
 }
@@ -336,6 +344,42 @@ class Translations$selectedFilesPage$zh_TW extends Translations$selectedFilesPag
   String get deleteAll => '全部刪除';
 }
 
+// Path: deviceDetailsPage
+class Translations$deviceDetailsPage$zh_TW extends Translations$deviceDetailsPage$en {
+  Translations$deviceDetailsPage$zh_TW.internal(TranslationsZhTw root) : this._root = root, super.internal(root);
+
+  final TranslationsZhTw _root; // ignore: unused_field
+
+  // Translations
+  @override
+  String get title => '裝置詳情';
+  @override
+  String get favorite => '最愛';
+  @override
+  String get verify => '驗證';
+  @override
+  late final Translations$deviceDetailsPage$info$zh_TW info = Translations$deviceDetailsPage$info$zh_TW.internal(_root);
+  @override
+  late final Translations$deviceDetailsPage$logs$zh_TW logs = Translations$deviceDetailsPage$logs$zh_TW.internal(_root);
+}
+
+// Path: verifyPage
+class Translations$verifyPage$zh_TW extends Translations$verifyPage$en {
+  Translations$verifyPage$zh_TW.internal(TranslationsZhTw root) : this._root = root, super.internal(root);
+
+  final TranslationsZhTw _root; // ignore: unused_field
+
+  // Translations
+  @override
+  String get title => '驗證';
+  @override
+  String get icons => '圖示';
+  @override
+  String get text => '文字';
+  @override
+  String get question => '在另一台裝置上顯示的內容相同嗎？';
+}
+
 // Path: receivePage
 class Translations$receivePage$zh_TW extends Translations$receivePage$en {
   Translations$receivePage$zh_TW.internal(TranslationsZhTw root) : this._root = root, super.internal(root);
@@ -384,6 +428,8 @@ class Translations$sendPage$zh_TW extends Translations$sendPage$en {
 
   // Translations
   @override
+  String calculatingChecksum({required Object curr, required Object n}) => '正在計算核對和（${curr} / ${n}）';
+  @override
   String get waiting => '正在等候回應…';
   @override
   String get rejected => '接收者拒絕了要求。';
@@ -391,8 +437,6 @@ class Translations$sendPage$zh_TW extends Translations$sendPage$en {
   String get tooManyAttempts => _root.web.tooManyAttempts;
   @override
   String get busy => '接收者正忙於處理另一個要求。';
-  @override
-  String calculatingChecksum({required Object curr, required Object n}) => '正在計算核對和（${curr} / ${n}）';
 }
 
 // Path: progressPage
@@ -453,6 +497,17 @@ class Translations$webSharePage$zh_TW extends Translations$webSharePage$en {
   String pendingRequests({required Object n}) => '待處理的要求：${n}';
 }
 
+// Path: webReceivePage
+class Translations$webReceivePage$zh_TW extends Translations$webReceivePage$en {
+  Translations$webReceivePage$zh_TW.internal(TranslationsZhTw root) : this._root = root, super.internal(root);
+
+  final TranslationsZhTw _root; // ignore: unused_field
+
+  // Translations
+  @override
+  String get title => '透過連結接收';
+}
+
 // Path: aboutPage
 class Translations$aboutPage$zh_TW extends Translations$aboutPage$en {
   Translations$aboutPage$zh_TW.internal(TranslationsZhTw root) : this._root = root, super.internal(root);
@@ -505,6 +560,19 @@ class Translations$changelogPage$zh_TW extends Translations$changelogPage$en {
   // Translations
   @override
   String get title => '變更記錄';
+}
+
+// Path: whatsNewPage
+class Translations$whatsNewPage$zh_TW extends Translations$whatsNewPage$en {
+  Translations$whatsNewPage$zh_TW.internal(TranslationsZhTw root) : this._root = root, super.internal(root);
+
+  final TranslationsZhTw _root; // ignore: unused_field
+
+  // Translations
+  @override
+  String title({required Object version}) => '${version} 有什麼新功能';
+  @override
+  late final Translations$whatsNewPage$changes$zh_TW changes = Translations$whatsNewPage$changes$zh_TW.internal(_root);
 }
 
 // Path: dialogs
@@ -689,19 +757,6 @@ class Translations$assetPicker$zh_TW extends Translations$assetPicker$en {
   String get sUnitAssetCountLabel => '計數';
 }
 
-// Path: whatsNewPage
-class Translations$whatsNewPage$zh_TW extends Translations$whatsNewPage$en {
-  Translations$whatsNewPage$zh_TW.internal(TranslationsZhTw root) : this._root = root, super.internal(root);
-
-  final TranslationsZhTw _root; // ignore: unused_field
-
-  // Translations
-  @override
-  String title({required Object version}) => '${version} 有什麼新功能';
-  @override
-  late final Translations$whatsNewPage$changes$zh_TW changes = Translations$whatsNewPage$changes$zh_TW.internal(_root);
-}
-
 // Path: receiveTab.infoBox
 class Translations$receiveTab$infoBox$zh_TW extends Translations$receiveTab$infoBox$en {
   Translations$receiveTab$infoBox$zh_TW.internal(TranslationsZhTw root) : this._root = root, super.internal(root);
@@ -848,6 +903,8 @@ class Translations$settingsTab$receive$zh_TW extends Translations$settingsTab$re
   String get saveToGallery => '儲存媒體至相簿';
   @override
   String get saveToHistory => '儲存至歷史記錄';
+  @override
+  String get verifyChecksums => '接收檔案時驗證校驗碼';
 }
 
 // Path: settingsTab.send
@@ -861,6 +918,8 @@ class Translations$settingsTab$send$zh_TW extends Translations$settingsTab$send$
   String get title => '傳送';
   @override
   String get shareViaLinkAutoAccept => '透過連結分享：自動同意接收要求';
+  @override
+  String get createChecksums => '傳送檔案時建立校驗碼';
 }
 
 // Path: settingsTab.network
@@ -897,13 +956,13 @@ class Translations$settingsTab$network$zh_TW extends Translations$settingsTab$ne
   @override
   String get generateRandomAlias => '隨機產生別名';
   @override
-  String portWarning({required Object defaultPort}) => '您可能無法被其他裝置偵測，因為您正在使用自訂通訊埠。(預設：${defaultPort})';
+  String portWarning({required Object defaultPort}) => '您使用了自訂通訊埠，因此其他裝置可能無法偵測到您。（預設值：${defaultPort}）';
   @override
   String get encryption => '加密';
   @override
-  String get multicastGroup => '多點傳送';
+  String get multicastGroup => '多點傳送位址';
   @override
-  String multicastGroupWarning({required Object defaultMulticast}) => '您可能無法被其他裝置偵測，因為您正在使用自訂多點傳送位址。(預設：${defaultMulticast})';
+  String multicastGroupWarning({required Object defaultMulticast}) => '您使用了自訂多點傳送位址，因此其他裝置可能無法偵測到您。（預設值：${defaultMulticast}）';
 }
 
 // Path: settingsTab.other
@@ -914,7 +973,7 @@ class Translations$settingsTab$other$zh_TW extends Translations$settingsTab$othe
 
   // Translations
   @override
-  String get title => '其它';
+  String get title => '其他';
   @override
   String get support => '支持 LocalSend';
   @override
@@ -963,7 +1022,7 @@ class Translations$troubleshootPage$noConnection$zh_TW extends Translations$trou
   @override
   String get symptom => '兩部裝置無法探索彼此，也無法分享檔案。';
   @override
-  String get solution => '雙方都存在問題？然後你需要確保兩部裝置處於相同的 Wi‑Fi 網路中並共用相同的組態 (通訊埠、多點傳送位址、加密選項)。Wi‑Fi 可能不允許參與者之間進行通訊。在這種狀況下，必須在路由器上停用「存取點 (AP) 隔離」選項。';
+  String get solution => '兩部裝置都有這個問題嗎？若是，請確認兩部裝置已連線至相同的 Wi‑Fi 網路，且使用相同的設定（通訊埠、多點傳送位址、加密選項）。Wi‑Fi 網路可能因為啟用了「無線存取點（AP）隔離」而不允許裝置彼此通訊。請在路由器上停用此選項。';
 }
 
 // Path: receiveHistoryPage.entryActions
@@ -981,6 +1040,40 @@ class Translations$receiveHistoryPage$entryActions$zh_TW extends Translations$re
   String get info => '資訊';
   @override
   String get deleteFromHistory => '從歷史記錄刪除';
+}
+
+// Path: deviceDetailsPage.info
+class Translations$deviceDetailsPage$info$zh_TW extends Translations$deviceDetailsPage$info$en {
+  Translations$deviceDetailsPage$info$zh_TW.internal(TranslationsZhTw root) : this._root = root, super.internal(root);
+
+  final TranslationsZhTw _root; // ignore: unused_field
+
+  // Translations
+  @override
+  String get name => '名稱';
+  @override
+  String get address => '位址';
+  @override
+  String get version => '版本';
+  @override
+  String protocol({required Object version}) => '協定 v${version}';
+}
+
+// Path: deviceDetailsPage.logs
+class Translations$deviceDetailsPage$logs$zh_TW extends Translations$deviceDetailsPage$logs$en {
+  Translations$deviceDetailsPage$logs$zh_TW.internal(TranslationsZhTw root) : this._root = root, super.internal(root);
+
+  final TranslationsZhTw _root; // ignore: unused_field
+
+  // Translations
+  @override
+  String get title => '記錄';
+  @override
+  String get empty => '沒有可用的記錄。';
+  @override
+  String discovered({required Object protocol, required Object host}) => '透過 ${protocol} 發現 (${host})';
+  @override
+  String updated({required Object protocol, required Object host}) => '透過 ${protocol} 更新 (${host})';
 }
 
 // Path: progressPage.total
@@ -1007,13 +1100,32 @@ class Translations$progressPage$remainingTime$zh_TW extends Translations$progres
   final TranslationsZhTw _root; // ignore: unused_field
 
   // Translations
-
-  /// 使用「h」作為小時縮寫，「m」作為分鐘縮寫
   @override
-  String hours({required Object h, required Object m}) => '${h}小時 ${m}分鐘';
-
+  String minutesUnit({required num m}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('zh'))(
+    m,
+    other: '${m}分鐘',
+  );
+  @override
+  String hoursUnit({required num h}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('zh'))(
+    h,
+    other: '${h}小時',
+  );
   @override
   String minutes({required Object m, required Object ss}) => '${m}:${ss}';
+  @override
+  String hours({required num h, required num m}) =>
+      '${_root.progressPage.remainingTime.hoursUnit(h: h)} ${_root.progressPage.remainingTime.minutesUnit(m: m)}';
+}
+
+// Path: whatsNewPage.changes
+class Translations$whatsNewPage$changes$zh_TW extends Translations$whatsNewPage$changes$en {
+  Translations$whatsNewPage$changes$zh_TW.internal(TranslationsZhTw root) : this._root = root, super.internal(root);
+
+  final TranslationsZhTw _root; // ignore: unused_field
+
+  // Translations
+  @override
+  late final Translations$whatsNewPage$changes$v1_18_0$zh_TW v1_18_0 = Translations$whatsNewPage$changes$v1_18_0$zh_TW.internal(_root);
 }
 
 // Path: dialogs.addFile
@@ -1349,11 +1461,11 @@ class Translations$dialogs$sendModeHelp$zh_TW extends Translations$dialogs$sendM
   @override
   String get title => '傳送模式';
   @override
-  String get single => '傳送檔案至單個接收者，選取項目將在檔案傳輸完成後被清除。';
+  String get single => '傳送檔案給單一接收者；檔案傳輸完成後，系統會清除選取項目。';
   @override
-  String get multiple => '傳送檔案至多重接收者，選取項目將不會被清除。';
+  String get multiple => '傳送檔案給多位接收者；檔案傳輸完成後，系統不會清除選取項目。';
   @override
-  String get link => '未安裝 LocalSend 的接收者可以透過在瀏覽器開啟連結以下載選取的檔案.';
+  String get link => '未安裝 LocalSend 的接收者可以在瀏覽器中開啟連結，以下載選取的檔案。';
 }
 
 // Path: dialogs.zoom
@@ -1365,17 +1477,6 @@ class Translations$dialogs$zoom$zh_TW extends Translations$dialogs$zoom$en {
   // Translations
   @override
   String get title => '網址';
-}
-
-// Path: whatsNewPage.changes
-class Translations$whatsNewPage$changes$zh_TW extends Translations$whatsNewPage$changes$en {
-  Translations$whatsNewPage$changes$zh_TW.internal(TranslationsZhTw root) : this._root = root, super.internal(root);
-
-  final TranslationsZhTw _root; // ignore: unused_field
-
-  // Translations
-  @override
-  late final Translations$whatsNewPage$changes$v1_18_0$zh_TW v1_18_0 = Translations$whatsNewPage$changes$v1_18_0$zh_TW.internal(_root);
 }
 
 // Path: settingsTab.general.brightnessOptions
@@ -1404,6 +1505,8 @@ class Translations$settingsTab$general$colorOptions$zh_TW extends Translations$s
   String get system => '系統';
   @override
   String get oled => 'OLED';
+  @override
+  String get custom => '自訂';
 }
 
 // Path: settingsTab.general.languageOptions
