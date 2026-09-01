@@ -1,22 +1,27 @@
 mod devices;
 mod discovery;
+mod headless;
+mod keys;
 mod receive;
 mod sending;
 mod status;
+mod target;
 mod web_link;
 
-use crate::Args;
 use crate::device_list::DeviceList;
 use crate::picker::Picker;
 use crate::slots::Slots;
 use crate::storage;
 use crate::ui::{Category, Ui};
-use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use crate::{Args, Command};
+use crossterm::event::{Event, KeyEvent, KeyEventKind};
+use keys::{Intent, KeyDecoder};
 use localsend::discovery::{
     DEFAULT_DISCOVERY_TIMEOUT, DeviceIdentity, DiscoveryConfig, DiscoveryEvent, DiscoveryHandle,
+    HttpChannel,
 };
 use localsend::http::server::v2::ServerEventV2;
-use localsend::http::server::web::WebSendEvent;
+use localsend::http::server::web::{WebConfig, WebDownloadEvent};
 use localsend::http::server::{ServerConfigV2, ServerHandle, start_with_port};
 use localsend::model::discovery::ProtocolType;
 use localsend::multicast::{DEFAULT_MULTICAST_GROUP, DEFAULT_MULTICAST_GROUP_V6, DEFAULT_PORT};
@@ -26,12 +31,25 @@ use sending::SendState;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
+use target::TargetSelector;
 use tokio::sync::{mpsc, oneshot};
 
-/// Events processed by the central application loop.
+/// Everything that can happen to the application.
 pub enum AppEvent {
     /// A key was pressed.
     Key(KeyEvent),
+
+    /// An event of the HTTP server (protocol v2).
+    Server(ServerEventV2),
+
+    /// An event of the "share via link" download page.
+    Web(WebDownloadEvent),
+
+    /// A device entered or updated the discovery store.
+    Discovery(DiscoveryEvent),
+
+    /// The periodic redraw of the status line and the open overlay.
+    Tick,
 
     /// A file of the active receive session finished (or failed).
     ReceiveFileResult {
@@ -46,67 +64,58 @@ pub enum AppEvent {
         accepted_bytes: u64,
     },
 
-    /// The send task ended (successfully or not).
-    SendEnded,
+    /// The send task ended.
+    SendEnded { success: bool },
+
+    /// The staged startup discovery finished.
+    DiscoveryFinished,
 
     /// A log line produced by a background task.
     Log { category: Category, text: String },
 }
 
-struct App {
-    ui: Ui,
+pub async fn run(args: Args) -> anyhow::Result<()> {
+    let (preselected, target) = match &args.command {
+        Some(Command::Send { to, paths }) => (
+            paths.clone(),
+            to.as_deref().map(TargetSelector::parse).transpose()?,
+        ),
+        None => (Vec::new(), None),
+    };
+    for path in &preselected {
+        anyhow::ensure!(
+            path.is_file() || path.is_dir(),
+            "Not a file or directory: {}",
+            path.display()
+        );
+    }
+    let storage = storage::Repository::load(&args)?;
+    match target {
+        Some(target) => headless::run(storage, target, preselected).await,
+        None => run_interactive(storage, preselected).await,
+    }
+}
+
+/// The network tasks shared by the interactive and the headless mode: the
+/// HTTP server (TLS, like the app) and the discovery.
+struct Network {
     server: Arc<ServerHandle>,
+    server_stop_tx: oneshot::Sender<()>,
 
-    /// Stops the running server. Consumed on shutdown and whenever the server
-    /// is restarted for the web share toggle.
-    server_stop_tx: Option<oneshot::Sender<()>>,
-
-    /// Event senders handed to every (re)started server, so the receivers in
-    /// [run]'s select loop survive server restarts.
+    /// Event sender handed to every (re)started server, so the receiver
+    /// survives server restarts.
     server_tx: mpsc::Sender<ServerEventV2>,
-    web_tx: mpsc::Sender<WebSendEvent>,
-
-    /// The active web link mode ("share via link" / "receive via link");
-    /// `Some` while the server runs in plain-HTTP mode for browsers.
-    web: Option<web_link::WebMode>,
-
-    /// Whether the previously pressed key was `W`, the first half of the
-    /// W+S / W+R chords toggling the web links.
-    chord_w: bool,
+    server_rx: mpsc::Receiver<ServerEventV2>,
 
     /// The core discovery: the store of confirmed devices, and the multicast
     /// side when it could be started.
     discovery: Arc<DiscoveryHandle>,
-
-    /// The hotkeys (1-9) of the devices in the discovery store.
-    slots: Slots,
-
-    /// Config, identity and paired devices, see [`storage::Repository`].
-    storage: storage::Repository,
-
-    pending: Option<PendingReceive>,
-    receive: Option<ReceiveSession>,
-    send: Option<SendState>,
-    picker: Option<Picker>,
-    device_list: Option<DeviceList>,
-
-    /// Files given via `-f`/`--file`; sending uses these instead of the picker.
-    preselected: Vec<PathBuf>,
-
-    events_tx: mpsc::Sender<AppEvent>,
+    discovery_rx: mpsc::Receiver<DiscoveryEvent>,
+    discovery_stop_tx: oneshot::Sender<()>,
 }
 
-pub async fn run(args: Args) -> anyhow::Result<()> {
-    for path in &args.file {
-        anyhow::ensure!(path.is_file(), "Not a file: {}", path.display());
-    }
-    let storage = storage::Repository::load(&args)?;
-    let identity = storage.identity.clone();
-    let (events_tx, mut events_rx) = mpsc::channel::<AppEvent>(64);
-
-    // HTTP server (TLS, like the app, until "share via link" drops it).
-    let (server_tx, mut server_rx) = mpsc::channel::<ServerEventV2>(16);
-    let (web_tx, mut web_rx) = mpsc::channel::<WebSendEvent>(16);
+async fn start_network(identity: &Arc<storage::Identity>) -> anyhow::Result<Network> {
+    let (server_tx, server_rx) = mpsc::channel::<ServerEventV2>(16);
     let (server_stop_tx, server_stop_rx) = oneshot::channel::<()>();
     let server = start_with_port(
         identity.port,
@@ -118,16 +127,15 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             verify_checksums: true,
             event_tx: server_tx.clone(),
         }),
-        None,
+        WebConfig::default(),
         server_stop_rx,
     )
     .await?;
-    let server = Arc::new(server);
 
     // Discovery: multicast, plus the register requests answering other
     // devices' announcements. Multicast failure is not fatal: the store keeps
     // collecting the devices that contact this device over HTTP.
-    let (discovery_tx, mut discovery_rx) = mpsc::channel::<DiscoveryEvent>(16);
+    let (discovery_tx, discovery_rx) = mpsc::channel::<DiscoveryEvent>(16);
     let (discovery_stop_tx, discovery_stop_rx) = oneshot::channel::<()>();
     let discovery = Arc::new(
         localsend::discovery::start(
@@ -151,36 +159,145 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     if let Some(err) = discovery.multicast_error() {
         eprintln!("Multicast unavailable: {err:#}");
     }
-    {
-        // Discover in stages: announce this device (peers answer with an HTTP
-        // register request), probe the paired devices' stored addresses, and
-        // fall back to scanning the local subnets when nothing was confirmed.
-        let discovery = discovery.clone();
-        let events_tx = events_tx.clone();
-        let port = identity.port;
-        let known_channels = storage.paired.known_http_channels();
-        let interface_ips =
-            local_interface_addresses(&InterfaceFilter::default()).unwrap_or_default();
-        tokio::spawn(async move {
-            let result = discovery
-                .discover_staged(
-                    known_channels,
-                    interface_ips,
-                    port,
-                    ProtocolType::Https,
-                    Duration::from_secs(1),
-                )
+
+    Ok(Network {
+        server: Arc::new(server),
+        server_stop_tx,
+        server_tx,
+        server_rx,
+        discovery,
+        discovery_rx,
+        discovery_stop_tx,
+    })
+}
+
+/// Discovers in stages: announce this device (peers answer with an HTTP
+/// register request), probe the known addresses, and fall back to scanning
+/// the local subnets when nothing was confirmed. Ends by emitting
+/// [AppEvent::DiscoveryFinished].
+fn spawn_staged_discovery(
+    discovery: Arc<DiscoveryHandle>,
+    events_tx: mpsc::Sender<AppEvent>,
+    known_channels: Vec<HttpChannel>,
+    port: u16,
+) {
+    let interface_ips = local_interface_addresses(&InterfaceFilter::default()).unwrap_or_default();
+    tokio::spawn(async move {
+        let result = discovery
+            .discover_staged(
+                known_channels,
+                interface_ips,
+                port,
+                ProtocolType::Https,
+                Duration::from_secs(1),
+            )
+            .await;
+        if let Err(err) = result {
+            let _ = events_tx
+                .send(AppEvent::Log {
+                    category: Category::Discovery,
+                    text: format!("Discovery failed: {err}"),
+                })
                 .await;
-            if let Err(err) = result {
-                let _ = events_tx
-                    .send(AppEvent::Log {
-                        category: Category::Discovery,
-                        text: format!("Discovery failed: {err}"),
-                    })
-                    .await;
-            }
-        });
+        }
+        let _ = events_tx.send(AppEvent::DiscoveryFinished).await;
+    });
+}
+
+/// Stops the server and the discovery, waiting briefly so the ports are
+/// released cleanly.
+async fn stop_network(
+    server: &ServerHandle,
+    server_stop_tx: Option<oneshot::Sender<()>>,
+    discovery: &DiscoveryHandle,
+    discovery_stop_tx: oneshot::Sender<()>,
+) {
+    if let Some(stop_tx) = server_stop_tx {
+        let _ = stop_tx.send(());
     }
+    let _ = discovery_stop_tx.send(());
+    let _ = tokio::time::timeout(Duration::from_secs(1), server.wait_stopped()).await;
+    let _ = tokio::time::timeout(Duration::from_secs(1), discovery.wait_stopped()).await;
+}
+
+/// The modal overlay owning the alternate screen. At most one is open at a
+/// time, and while it is, it consumes every key.
+enum Overlay {
+    None,
+    Picker(Box<Picker>),
+    DeviceList(DeviceList),
+}
+
+struct App {
+    ui: Ui,
+    server: Arc<ServerHandle>,
+
+    /// Stops the running server. Consumed on shutdown and whenever the server
+    /// is restarted for the web share toggle.
+    server_stop_tx: Option<oneshot::Sender<()>>,
+
+    /// Event senders handed to every (re)started server, so the receivers in
+    /// [run_interactive]'s select loop survive server restarts.
+    server_tx: mpsc::Sender<ServerEventV2>,
+    web_tx: mpsc::Sender<WebDownloadEvent>,
+
+    /// The active web link mode ("share via link" / "receive via link");
+    /// `Some` while the server runs in plain-HTTP mode for browsers.
+    web: Option<web_link::WebMode>,
+
+    /// Decodes key presses into [Intent]s, tracking the W+S / W+R chords.
+    keys: KeyDecoder,
+
+    /// The core discovery: the store of confirmed devices, and the multicast
+    /// side when it could be started.
+    discovery: Arc<DiscoveryHandle>,
+
+    /// The hotkeys (1-9) of the devices in the discovery store.
+    slots: Slots,
+
+    /// Config, identity and paired devices, see [`storage::Repository`].
+    storage: storage::Repository,
+
+    pending: Option<PendingReceive>,
+    receive: Option<ReceiveSession>,
+    send: Option<SendState>,
+    overlay: Overlay,
+
+    /// Paths given to the `send` command without `--to`: sending uses these
+    /// instead of the picker, and the one transfer is the whole program.
+    preselected: Vec<PathBuf>,
+
+    /// Returned after network tasks have shut down when a `send` command
+    /// could not complete.
+    exit_error: Option<anyhow::Error>,
+
+    events_tx: mpsc::Sender<AppEvent>,
+}
+
+/// The interactive mode: the append-only event log with hotkeys, and the
+/// overlays opened from them.
+async fn run_interactive(
+    storage: storage::Repository,
+    preselected: Vec<PathBuf>,
+) -> anyhow::Result<()> {
+    let identity = storage.identity.clone();
+    let (events_tx, mut events_rx) = mpsc::channel::<AppEvent>(64);
+    let (web_tx, mut web_rx) = mpsc::channel::<WebDownloadEvent>(16);
+    let Network {
+        server,
+        server_stop_tx,
+        server_tx,
+        mut server_rx,
+        discovery,
+        mut discovery_rx,
+        discovery_stop_tx,
+    } = start_network(&identity).await?;
+    spawn_staged_discovery(
+        discovery.clone(),
+        events_tx.clone(),
+        storage.paired.known_http_channels(),
+        identity.port,
+    );
 
     crossterm::terminal::enable_raw_mode()?;
 
@@ -209,16 +326,16 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         server_tx,
         web_tx,
         web: None,
-        chord_w: false,
+        keys: KeyDecoder::new(),
         discovery: discovery.clone(),
         slots: Slots::new(),
         storage,
         pending: None,
         receive: None,
         send: None,
-        picker: None,
-        device_list: None,
-        preselected: args.file,
+        overlay: Overlay::None,
+        preselected,
+        exit_error: None,
         events_tx: events_tx.clone(),
     };
 
@@ -234,48 +351,43 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
 
     let mut quit = false;
     while !quit {
-        tokio::select! {
-            Some(event) = events_rx.recv() => {
-                quit = app.handle_event(event).await;
-            }
-            Some(event) = server_rx.recv() => {
-                app.handle_server_event(event);
-            }
-            Some(event) = web_rx.recv() => {
-                app.handle_web_event(event);
-            }
-            Some(event) = discovery_rx.recv() => {
-                app.handle_discovery(event);
-            }
-            _ = tick.tick() => {
-                app.tick();
-            }
-        }
+        let event = tokio::select! {
+            Some(event) = events_rx.recv() => event,
+            Some(event) = server_rx.recv() => AppEvent::Server(event),
+            Some(event) = web_rx.recv() => AppEvent::Web(event),
+            Some(event) = discovery_rx.recv() => AppEvent::Discovery(event),
+            _ = tick.tick() => AppEvent::Tick,
+        };
+        quit = app.dispatch(event).await;
     }
 
-    // Shutdown: leave a possibly open modal, restore the terminal, stop the
-    // network tasks (briefly, so the ports are released cleanly).
-    if let Some(picker) = app.picker.take() {
-        picker.close();
-        app.ui.resume();
-    }
-    app.close_device_list();
+    // Shutdown: leave a possibly open overlay, restore the terminal, stop the
+    // network tasks.
+    app.close_overlay();
     app.ui.set_status(None);
     let _ = crossterm::terminal::disable_raw_mode();
-    if let Some(stop_tx) = app.server_stop_tx.take() {
-        let _ = stop_tx.send(());
+    stop_network(
+        &app.server,
+        app.server_stop_tx.take(),
+        &discovery,
+        discovery_stop_tx,
+    )
+    .await;
+    match app.exit_error.take() {
+        Some(error) => Err(error),
+        None => Ok(()),
     }
-    let _ = discovery_stop_tx.send(());
-    let _ = tokio::time::timeout(Duration::from_secs(1), app.server.wait_stopped()).await;
-    let _ = tokio::time::timeout(Duration::from_secs(1), discovery.wait_stopped()).await;
-    Ok(())
 }
 
 impl App {
     /// Handles an event; returns `true` when the application should quit.
-    async fn handle_event(&mut self, event: AppEvent) -> bool {
+    async fn dispatch(&mut self, event: AppEvent) -> bool {
         match event {
             AppEvent::Key(key) => return self.handle_key(key).await,
+            AppEvent::Server(event) => self.handle_server_event(event),
+            AppEvent::Web(event) => self.handle_web_event(event),
+            AppEvent::Discovery(event) => self.handle_discovery(event),
+            AppEvent::Tick => self.tick(),
             AppEvent::ReceiveFileResult {
                 session_id,
                 file_id,
@@ -290,62 +402,69 @@ impl App {
                     send.total_bytes = accepted_bytes;
                 }
             }
-            AppEvent::SendEnded => {
+            AppEvent::SendEnded { success } => {
                 self.send = None;
                 self.render_status();
-                // In `--file` mode the transfer is the whole program.
+                if !success && !self.preselected.is_empty() {
+                    self.exit_error = Some(anyhow::anyhow!("Transfer failed"));
+                }
+                // In `send` mode the transfer is the whole program.
                 return !self.preselected.is_empty();
             }
+            // Only the headless mode acts on the end of the startup discovery.
+            AppEvent::DiscoveryFinished => {}
             AppEvent::Log { category, text } => self.ui.log(category, &text),
         }
         false
     }
 
     async fn handle_key(&mut self, key: KeyEvent) -> bool {
-        if key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL) {
-            self.chord_w = false;
-            return self.handle_ctrl_c();
+        let overlay_open = !matches!(self.overlay, Overlay::None);
+        match self.keys.decode(key, overlay_open) {
+            Some(intent) => self.handle_intent(intent).await,
+            None => false,
         }
+    }
 
-        // While the picker or the device list is open it consumes every key.
-        if self.picker.is_some() {
-            self.handle_picker_key(key).await;
-            return false;
-        }
-        if self.device_list.is_some() {
-            return self.handle_device_list_key(key);
-        }
-
-        if let KeyCode::Char(c) = key.code {
-            let chord_w = std::mem::replace(&mut self.chord_w, false);
-            match c.to_ascii_lowercase() {
-                's' if chord_w => self.toggle_web_share().await,
-                'r' if chord_w => self.toggle_web_receive().await,
-                'w' => self.chord_w = true,
-                'y' => self.answer_pending(Answer::Accept),
-                'n' => self.answer_pending(Answer::Decline),
-                'p' => self.answer_pending(Answer::AcceptAndPair),
-                'd' => self.open_device_list(),
-                '1'..='9' => self.start_picking(c as u8 - b'0'),
-                _ => {}
+    /// Acts on a decoded intent; returns `true` when the application should
+    /// quit.
+    async fn handle_intent(&mut self, intent: Intent) -> bool {
+        match intent {
+            Intent::Cancel => return self.handle_ctrl_c(),
+            Intent::Overlay(key) => {
+                return match &self.overlay {
+                    Overlay::Picker(_) => {
+                        self.handle_picker_key(key).await;
+                        false
+                    }
+                    Overlay::DeviceList(_) => self.handle_device_list_key(key),
+                    Overlay::None => false,
+                };
             }
+            Intent::ToggleWebShare => self.toggle_web_share().await,
+            Intent::ToggleWebReceive => self.toggle_web_receive().await,
+            Intent::Answer(answer) => self.answer_pending(answer),
+            Intent::OpenDeviceList => self.open_device_list(),
+            Intent::PickDevice(slot) => self.start_picking(slot),
         }
         false
     }
 
-    /// Cancels the current activity: the open modal, the pending request and
+    /// Cancels the current activity: the open overlay, the pending request and
     /// the active transfers. Returns `true` (quit) only when there was
     /// nothing to cancel.
     fn handle_ctrl_c(&mut self) -> bool {
-        if let Some(picker) = self.picker.take() {
-            picker.close();
-            self.ui.resume();
-            return false;
-        }
-        if self.device_list.is_some() {
-            self.close_device_list();
-            // In `--file` mode the device list is the whole program.
-            return !self.preselected.is_empty();
+        match &self.overlay {
+            Overlay::Picker(_) => {
+                self.close_overlay();
+                return false;
+            }
+            Overlay::DeviceList(_) => {
+                self.close_overlay();
+                // In `send` mode the device list is the whole program.
+                return !self.preselected.is_empty();
+            }
+            Overlay::None => {}
         }
         let mut cancelled = false;
         if self.pending.is_some() {
@@ -363,5 +482,16 @@ impl App {
             cancelled = true;
         }
         !cancelled
+    }
+
+    /// Closes the open overlay (if any) and resumes the terminal output that
+    /// was suspended while the overlay owned the alternate screen.
+    fn close_overlay(&mut self) {
+        match std::mem::replace(&mut self.overlay, Overlay::None) {
+            Overlay::None => return,
+            Overlay::Picker(picker) => picker.close(),
+            Overlay::DeviceList(list) => list.close(),
+        }
+        self.ui.resume();
     }
 }

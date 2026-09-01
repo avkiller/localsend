@@ -5,15 +5,17 @@
 //! active the server is restarted without TLS and the links use plain
 //! `http://`. Toggling off restarts the encrypted server.
 
-use super::App;
+use super::{App, sending};
 use crate::picker::PickerTarget;
 use crate::ui::Category;
 use crate::util;
-use localsend::http::server::web::{WebConfig, WebI18n, WebPages, WebSendConfig, WebSendEvent};
+use localsend::http::server::web::{
+    WebConfig, WebDownloadConfig, WebDownloadEvent, WebMode as CoreWebMode,
+};
 use localsend::http::server::{ServerConfigV2, start_with_port};
 use localsend::model::transfer::FileContent;
-use qrcode::{EcLevel, QrCode};
 use qrcode::render::unicode;
+use qrcode::{EcLevel, QrCode};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -83,13 +85,7 @@ impl App {
             );
             return;
         }
-        let web_config = WebConfig {
-            send: None,
-            upload: true,
-            i18n: WebI18n::default(),
-            pages: WebPages::default(),
-        };
-        if let Err(err) = self.restart_server(Some(web_config)).await {
+        if let Err(err) = self.restart_server(CoreWebMode::Upload).await {
             self.ui.log(
                 Category::Receive,
                 &format!("Receive via link: could not restart the server: {err:#}"),
@@ -112,23 +108,18 @@ impl App {
     /// Restarts the server in plain-HTTP mode offering `picked` for download
     /// and prints the links to open in a browser.
     pub(super) async fn enable_web_share(&mut self, picked: Vec<PathBuf>) {
-        let (files, paths, total_bytes) = self.collect_files(picked);
+        let (files, paths, total_bytes) = sending::collect_files(&mut self.ui, picked);
         if files.is_empty() {
             self.ui.log(Category::Send, "No files selected");
             return;
         }
         let count = files.len();
-        let web_config = WebConfig {
-            send: Some(WebSendConfig {
-                files,
-                pin: None,
-                event_tx: self.web_tx.clone(),
-            }),
-            upload: false,
-            i18n: WebI18n::default(),
-            pages: WebPages::default(),
-        };
-        if let Err(err) = self.restart_server(Some(web_config)).await {
+        let web_mode = CoreWebMode::Download(WebDownloadConfig {
+            files,
+            pin: None,
+            event_tx: self.web_tx.clone(),
+        });
+        if let Err(err) = self.restart_server(web_mode).await {
             self.ui.log(
                 Category::Send,
                 &format!("Share via link: could not restart the server: {err:#}"),
@@ -166,13 +157,14 @@ impl App {
     /// code (light on dark), which phone scanners accept.
     fn web_qr(&self) -> Option<String> {
         let address = self.server.local_addresses().into_iter().next()?;
-        let code = QrCode::with_error_correction_level(format!("http://{address}"), EcLevel::L).ok()?;
+        let code =
+            QrCode::with_error_correction_level(format!("http://{address}"), EcLevel::L).ok()?;
         Some(code.render::<unicode::Dense1x2>().quiet_zone(false).build())
     }
 
     async fn disable_web(&mut self, category: Category, feature: &str) {
         self.web = None;
-        match self.restart_server(None).await {
+        match self.restart_server(CoreWebMode::Disabled).await {
             Ok(()) => self.ui.log(
                 category,
                 &format!("{feature} disabled, encryption is back on"),
@@ -187,7 +179,7 @@ impl App {
     /// Best effort after a failed plain-HTTP restart: get back to the normal
     /// encrypted server.
     async fn restore_encrypted_server(&mut self) {
-        if let Err(err) = self.restart_server(None).await {
+        if let Err(err) = self.restart_server(CoreWebMode::Disabled).await {
             self.ui.log(
                 Category::Send,
                 &format!("Could not restore the encrypted server: {err:#}"),
@@ -196,18 +188,18 @@ impl App {
     }
 
     /// Stops the running server and starts a fresh one on the same port:
-    /// the normal encrypted one, or, when `web_config` is given, a plain-HTTP
+    /// the normal encrypted one, or, when a web page is active, a plain-HTTP
     /// one that additionally serves that web page.
-    async fn restart_server(&mut self, web_config: Option<WebConfig>) -> anyhow::Result<()> {
+    async fn restart_server(&mut self, web_mode: CoreWebMode) -> anyhow::Result<()> {
         if let Some(stop_tx) = self.server_stop_tx.take() {
             let _ = stop_tx.send(());
         }
         let _ = tokio::time::timeout(Duration::from_secs(3), self.server.wait_stopped()).await;
 
         let identity = &self.storage.identity;
-        let tls_config = match web_config.is_some() {
-            true => None,
-            false => Some(identity.tls_config()),
+        let tls_config = match web_mode {
+            CoreWebMode::Disabled => Some(identity.tls_config()),
+            _ => None,
         };
         let (stop_tx, stop_rx) = oneshot::channel::<()>();
         let server = start_with_port(
@@ -220,7 +212,10 @@ impl App {
                 verify_checksums: true,
                 event_tx: self.server_tx.clone(),
             }),
-            web_config,
+            WebConfig {
+                mode: web_mode,
+                ..WebConfig::default()
+            },
             stop_rx,
         )
         .await?;
@@ -229,9 +224,9 @@ impl App {
         Ok(())
     }
 
-    pub(super) fn handle_web_event(&mut self, event: WebSendEvent) {
+    pub(super) fn handle_web_event(&mut self, event: WebDownloadEvent) {
         match event {
-            WebSendEvent::PrepareDownload {
+            WebDownloadEvent::PrepareDownload {
                 ip,
                 user_agent,
                 decision_tx,
@@ -247,7 +242,7 @@ impl App {
                     &format!("Web: {ip} opened the shared link{agent}"),
                 );
             }
-            WebSendEvent::FileDownload {
+            WebDownloadEvent::FileDownload {
                 session_id,
                 file_id,
                 file,
