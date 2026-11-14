@@ -11,7 +11,7 @@ on:
 
 env:
   FLUTTER_VERSION: "3.47.9"
-  RUST_VERSION: "1.84.1"
+  RUST_VERSION: "1.97.1"
   APK_BUILD_DIR: "/tmp/build"
 
 jobs:
@@ -94,6 +94,13 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
 
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Check rust-toolchain.toml
+        working-directory: ${{ env.APK_BUILD_DIR }}/packages/localsend_isolates
+        run: rustup show
       - name: Dependencies
         working-directory: ${{ env.APK_BUILD_DIR }}/app
         run: flutter pub get
