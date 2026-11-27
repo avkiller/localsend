@@ -5,9 +5,9 @@ on:
     inputs:
       version:
         type: string
-        description: 'Release Tag (e.g. v1.18.0)'
+        description: 'Release Tag (e.g. v1.19.0)'
         required: true
-        default: 'v1.18.0'
+        default: 'v1.19.0'
 
 permissions:
   contents: write
@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   publish:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
