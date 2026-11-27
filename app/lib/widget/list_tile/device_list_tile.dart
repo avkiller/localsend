@@ -72,7 +72,7 @@ class DeviceListTile extends StatelessWidget {
               )
             else
               DeviceBadge(
-                backgroundColor: badgeColor,s
+                backgroundColor: badgeColor,
                 foregroundColor: Theme.of(context).colorScheme.onSecondaryContainer,
                 label: 'WebRTC',
               ),

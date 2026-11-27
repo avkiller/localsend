@@ -27,12 +27,9 @@ class HttpServerService {
     required String? showToken,
   }) async {
     if (_server != null) {
-      try {
-      await _server!.stop();
-    } catch (_) {}
-    _server = null;
+      throw StateError('Server already running');
     }
-    await Future.delayed(const Duration(milliseconds: 200));
+
     final server = await startServer(
       port: port,
       tls: tls,
